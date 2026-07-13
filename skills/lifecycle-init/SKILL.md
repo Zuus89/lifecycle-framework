@@ -98,10 +98,37 @@ Never invent knowledge-base content; only copy what the user supplies.
 
 ---
 
-## C. Connections — Git → Tracker → Databricks
+## C. Connections — MCP scope → Git → Tracker → Databricks
 
 This is where the project is wired to the outside world. For **each** connection: **report what you detected in
 pre-flight, ask the user to confirm or change it, and only then guide creation if nothing exists.**
+
+### C.0 — MCP scope (ask ONCE, applies to every MCP server this init wires)
+
+Claude Code stores MCP servers at three usable scopes (plus IT-managed `managed-mcp.json`), with documented
+precedence **local > project > user** — the winning entry replaces the whole definition, fields are never merged
+(https://code.claude.com/docs/en/mcp — Installation scopes / Scope hierarchy):
+
+| Scope | Lives in | Official guidance |
+| --- | --- | --- |
+| `local` (CLI default) | `~/.claude.json` → this project's entry | personal servers, experimental configs, credentials you don't want in version control |
+| `project` | `.mcp.json` at repo root (committed) | team collaboration — same servers for everyone; **no secrets**, use `${VAR}` / `${VAR:-default}` env expansion (officially supported in `command`/`args`/`env`/`url`/`headers`) |
+| `user` | `~/.claude.json` root level | personal utilities you use across all projects on this machine |
+
+1. **Detect multi-identity signals** from pre-flight: ≥2 accounts in `gh auth status`, and/or multiple
+   tracker/Atlassian identities already configured across `~/.claude.json` projects.
+2. **Ask** (one question): **"Where do I configure this project's MCP servers — `local`, `project`, or `user`?"**
+   - Multi-identity machine (consultant working for several orgs/clients) → recommend **`local`**: servers (and the
+     context they leak) stay confined to this project; nothing bleeds into other clients' sessions.
+   - Team repo + server definable without secrets (env-var indirection) → recommend **`project`**: commit
+     `.mcp.json` so every teammate gets it. Tokens go in per-user env vars, never in the file. Note the approval
+     flow: project-scoped servers need user approval (`enabledMcpjsonServers` / trust dialog).
+   - Single-identity machine, personal tooling used everywhere → **`user`** is fine.
+3. Record → `{{MCP_SCOPE}}`. Apply it to **every** server this init wires (tracker in C.2, `github`, stack MCPs,
+   `basic-memory` stays project-scoped by design — §6.4). Note the choice in `mcp-usage`/`CLAUDE.md` so future
+   sessions know where servers live.
+4. **Never assume `user`/global.** If the user later needs the same server elsewhere, re-running init there (or
+   `claude mcp add` in that project) is the supported path.
 
 ### C.1 — Git (the repo this framework runs in)
 
@@ -156,8 +183,10 @@ Use the pre-flight detection of the connected tracker MCP.
    - If exactly one is connected (Linear or Jira): **"I detected <X> connected. Use <X> for this project?"** Confirm
      or switch. → `{{TRACKER}}`.
    - If both are connected: ask which to use.
-   - If none: ask `linear | jira | none`, and tell the user the chosen tracker's MCP must be enabled (user-global) —
-     verified in §6. `none` → local `TODO.md` only; skip the rest of C.2.
+   - If none: ask `linear | jira | none`, and wire the chosen tracker's MCP **at `{{MCP_SCOPE}}` (C.0)** — verified
+     in §6. Offer the exact command for the scope: `claude mcp add --scope local|user <name> …`, or for `project`
+     scope write the server into `.mcp.json` with `${VAR}` env-var indirection (token in the user's env, never in
+     the file). `none` → local `TODO.md` only; skip the rest of C.2.
 2. **Find what this repo connects to** (scope). Ask: **"Is this repo tied to a single ticket, or to a larger
    project/epic?"** Then resolve it concretely using the tracker MCP so you store real ids, not guesses:
    - **Linear:** `{{TRACKER_ORG}}` (workspace) + `{{TRACKER_TEAM}}` (team) + the **project or initiative** →
@@ -289,15 +318,26 @@ From the project root (print the exact command for the user if a step is blocked
      status` if GitHub.
    - **MCP:** with the default `corpus` backend there is **no memory MCP** to verify — confirm `.mcp.json` is empty
      (`{"mcpServers":{}}`) and that the corpus (chronicle + snapshot + INDEX) is in place; that *is* the knowledge
-     graph. If `{{MEMORY_BACKEND}} = basic-memory`, verify it per §6.4. Then the **user-global prerequisites**:
-     `github` and the chosen tracker MCP (Linear / Atlassian) — if absent, tell the user to enable them globally;
-     flag, don't block.
+     graph. If `{{MEMORY_BACKEND}} = basic-memory`, verify it per §6.4. Then verify `github` and the chosen tracker
+     MCP (Linear / Atlassian) **at `{{MCP_SCOPE}}` (C.0)** — if absent, give the user the exact enable command for
+     that scope; flag, don't block. Two extra checks:
+     - **Shadowing (doc-backed):** if the same server name exists at more than one scope, warn which definition wins
+       (precedence `local > project > user`, whole-entry override — a stale local entry silently masks the team's
+       `.mcp.json`). Offer `claude mcp remove --scope <loser>` to clean up.
+     - **Windows dual-casing (empirical, not in official docs):** with `{{MCP_SCOPE}} = local`, `~/.claude.json` may
+       hold TWO entries for the same project differing only in drive-letter case (`c:/…` vs `C:/…`), and
+       `claude mcp add` writes only the cwd's casing. Verify the server exists under **both** casings when both
+       entries exist; mirror it into the missing one.
    - **Databricks** (if on): confirm the chosen profile authenticates (`databricks current-user me --profile
      {{DATABRICKS_PROFILE}}` or an SQL-connector ping); flag per-env gaps.
 
 ### 6.4 — Enable `basic-memory` (only if `{{MEMORY_BACKEND}} = basic-memory`)
 
-Skip entirely for the default `corpus` backend. When opted in, at scaffold time:
+Skip entirely for the default `corpus` backend. `basic-memory` is deliberately **project-scoped** (`.mcp.json`)
+regardless of `{{MCP_SCOPE}}` — its storage lives inside the repo (`docs/memory/`), so the definition belongs with
+the repo; the C.0 choice governs the *external* connections (tracker, github, stack MCPs). Being project-scoped it
+goes through the approval flow — that is why step 4 below allowlists it in `enabledMcpjsonServers`. When opted in,
+at scaffold time:
 
 1. **Prereqs.** Verify `uv`/`uvx` and **Python 3.12+** are available (`uvx --version`, `python --version`). If
    missing, tell the user to install `uv` (https://docs.astral.sh/uv/) and **flag it** — do not block the rest of init.
