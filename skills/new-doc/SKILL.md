@@ -1,6 +1,6 @@
 ---
 name: new-doc
-description: Scaffold a governed .md document (spec, alpha_test, report, review_de, review_da, review_code-reviewer, review_devils-advocate, council, handoff) from docs/_templates/ with valid frontmatter, then validate it. Use when the user asks to create a new spec, alpha test, report, review, council verdict, or handoff — triggers include "/new-doc", "crea un spec", "nuevo doc", "scaffold a review", "diseña el alpha test", "create a handoff".
+description: Scaffold a governed .md document (spec, alpha_test, report, review_de, review_da, review_code-reviewer, review_devils-advocate, council, handoff, kb_article) from docs/_templates/ with valid frontmatter, then validate it. Use when the user asks to create a new spec, alpha test, report, review, council verdict, handoff, or knowledge-base article — triggers include "/new-doc", "crea un spec", "nuevo doc", "scaffold a review", "diseña el alpha test", "create a handoff", "new KB article", "crea un artículo de KB".
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 
@@ -10,7 +10,7 @@ Scaffold a new governed `.md` document with valid frontmatter from a project tem
 
 Every governed doc must start valid: correct frontmatter, correct shape. That is the whole point of scaffolding from a template instead of writing from memory — it keeps the corpus machine-checkable (the index, the validator, the pre-push hook, and CI all depend on it).
 
-> **Template source:** `docs/_templates/` — one template per type (9 templates).
+> **Template source:** `docs/_templates/` — one template per type (10 templates).
 > **Validator (project-scaffolded, repo-relative path — never `${CLAUDE_PLUGIN_ROOT}`):** `node scripts/validate-frontmatter.mjs <file>` — run after scaffolding.
 > The corpus engine (`scripts/*.mjs` + `corpus.config.mjs`) lives in the **project repo**, not the plugin, because git hooks and CI invoke the same scripts by relative path. Always call it as `scripts/...`.
 
@@ -40,15 +40,16 @@ The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task n
 | `review_da` | `docs/_templates/review_da.md` | `docs/claude_tasks/reviews/YYYY-MM-DD_NN_da_review.md` | 8 (DA / data-reviewer) |
 | `council` | `docs/_templates/council.md` | `docs/claude_tasks/council/YYYY-MM-DD_slug_council.md` | any (PM) |
 | `handoff` | `docs/_templates/handoff.md` | `docs/claude_tasks/handoffs/YYYY-MM-DD_NN_slug_handoff.md` | session boundary |
+| `kb_article` | `docs/_templates/kb_article.md` | `docs/knowledge_base/<kebab-slug>.md` | any (kb-curator at close / PM or human on demand) |
 
-> If a project added template types beyond these nine, list `docs/_templates/` first (`ls docs/_templates/`) and treat any additional `*.md` there as a valid type whose destination follows the same convention. Do not invent a type that has no template file.
+> If a project added template types beyond these ten, list `docs/_templates/` first (`ls docs/_templates/`) and treat any additional `*.md` there as a valid type whose destination follows the same convention. Do not invent a type that has no template file.
 
 ---
 
 ## Steps
 
 1. **Determine the type** from the user request, or ask:
-   `spec | alpha_test | report | review_de | review_da | review_code-reviewer | review_devils-advocate | council | handoff`.
+   `spec | alpha_test | report | review_de | review_da | review_code-reviewer | review_devils-advocate | council | handoff | kb_article`.
    If the user said "scaffold a review" without a role, ask which role review (`de`, `da`, `code-reviewer`, `devils-advocate`).
 
 2. **Read the template first** — `docs/_templates/<type>.md`. NEVER write frontmatter from memory; the template is the source of the valid shape. If the template file does not exist, stop and tell the user the project's templates are missing (likely `/lifecycle-init` was not run, or the project predates this type).
@@ -69,6 +70,10 @@ The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task n
    - `council` → `status: pending` until the human delivers the Step 7 verdict (then `decided` / `open`).
    - `report` → link it to its spec via `depends_on:` (the spec path) so the report/spec chain resolves in the index.
    - `handoff` → `status: snapshot`, `authority: secondary`; current-state facts only, no history.
+   - `kb_article` → `status: living`, `authority: ssot`, `owner: kb-curator`; **one topic, one article** — grep
+     `docs/knowledge_base/` (including every article's `aliases:`) for the topic before creating (the kb-curator's
+     dedup ladder is the reference procedure); fill the first `## Sources` row; the `## Sources` section is
+     **append-only** forever after. No `ticket:` field — provenance lives in `## Sources`.
 
 5. **Validate** the scaffolded file:
    ```

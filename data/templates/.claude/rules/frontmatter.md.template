@@ -121,6 +121,8 @@ participants: [pm, de, da, code-reviewer, devils-advocate]   # devils-advocate i
 last_reviewed: 2026-01-01
 owner: <name or role>
 related_decisions: [76, 78]    # optional — strategy.md decision-log entries
+aliases: []                    # KB articles (docs/knowledge_base/): synonyms/abbreviations for the
+                               # kb-curator's dedup grep — keep current, one topic per article
 ```
 
 ### `handoff` — in `docs/claude_tasks/*` (multi-session task handoff)
@@ -248,7 +250,7 @@ section is its specification.
 8. **`affects:` items match the prefix grammar** (§6).
 9. **`affects:` required** when `type: spec` AND any branch commit touches a shared object (§6).
 10. **UTF-8 without BOM** — the file does not start with `\xEF\xBB\xBF`.
-11. **No leftover template sentinel** — the "DELETE THIS HEADER BEFORE PUBLISHING" marker is not present in a published artifact under `docs/claude_tasks/`.
+11. **No leftover template sentinel** — the "DELETE THIS HEADER BEFORE PUBLISHING" marker is not present in a published artifact under `docs/claude_tasks/` or `docs/knowledge_base/`.
 12. **At most one `ssot`** per `(ticket_id, surface)` pair (§4).
 
 ### Soft rules (warning only)
@@ -302,6 +304,7 @@ PUBLISHING"** sentinel that the validator flags (rule §7.11) if left in a publi
 | `review_devils-advocate.md` | Devils-advocate ranked, evidence-grounded objections |
 | `council.md` | Council verdict with the deliberation protocol + reopen criteria |
 | `handoff.md` | Multi-session task handoff (transitory close) |
+| `kb_article.md` | Knowledge-base article (`type: doc`, `status: living`, `authority: ssot`; one topic per article, append-only `## Sources` provenance; written by the kb-curator at close or via `/new-doc`) |
 
 ---
 

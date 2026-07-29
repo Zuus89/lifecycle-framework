@@ -52,7 +52,7 @@ Field rules:
 - `branch` — current git branch verbatim (`git branch --show-current`).
 - `pr_url` — string, or `null` if no PR. Resolve via `gh pr view --json url -q .url`; trap a non-zero exit → `null`.
 - `step` — integer `1`–`10` (lifecycle step), or `null`. Determined **at invocation time** from the event being logged — NOT reverse-parsed from any comment. `null` is valid for events with no fixed step (`blocker-hit`, `decision`, `paused`, …) and for machine-originated (hook) lines.
-- `agent` — the role that authored the step. One of the role-descriptive ids `pm`, `de`, `da`, `code-reviewer`, `devils-advocate` (plus optional roles if enabled: `corpus-steward`, `data-reviewer`, `scout`, `dead-code-cleanup`), the human actor (`human`), or **`null`** for machine-originated (hook) lines. Set at invocation time from the logging context.
+- `agent` — the role that authored the step. One of the role-descriptive ids `pm`, `de`, `da`, `code-reviewer`, `devils-advocate` (plus optional roles if enabled: `corpus-steward`, `kb-curator`, `data-reviewer`, `scout`, `dead-code-cleanup`), the human actor (`human`), or **`null`** for machine-originated (hook) lines. Set at invocation time from the logging context.
 - `event` — a lowercase-hyphenated tag from the §B vocabulary. New tags require an addition to that table.
 - `summary` — 1–3 plain sentences. The human record. Written, not boilerplate. Use the project's documentation language (English by default; see `CLAUDE.md`).
 - `artifacts` — repo-relative paths created or changed in this step. `[]` if none.
@@ -81,6 +81,7 @@ Canonical, **closed list** mapped to the 10-step lifecycle. New tags require a l
 | `tests-failed` | Step 8 — alpha test / validations failed (binary) | 8 |
 | `validation-complete` | Step 9 — human accepted (or sent back — say which in `summary`) | 9 |
 | `task-closed` | Step 10 — `/close-task` | 10 |
+| `kb-curated` | Knowledge folded into `docs/knowledge_base/` by the kb-curator at close (summary carries created/updated/skipped counts) | 10 (full/research close) / **`null` (transitory)** |
 | `blocker-hit` | Work blocked — needs unblock | `null` |
 | `blocker-resolved` | Blocker cleared — work resumed | `null` |
 | `decision` | A decision of record or a deviation from plan | `null` |
@@ -88,6 +89,8 @@ Canonical, **closed list** mapped to the 10-step lifecycle. New tags require a l
 | `council-convened` | A `/council` deliberation was convened | `null` |
 
 `committed` is `step: 7` for **manual** invocation; the `post-commit` hook writes `step: null` because a commit's lifecycle step is not determinable in-hook (a commit can happen at Step 7 implementation or Step 10 close).
+
+`kb-curated` is `step: 10` when part of a Full or Research close and `step: null` at a transitory boundary (same rationale as `paused` — no lifecycle step completed). The **PM invokes** the log write — the activity log is outside the kb-curator's write allow-list — but the line carries `agent: "kb-curator"` (authored-by semantics). Log it only **after** every FAILED entry in the curator's filing plan is resolved (fixed or `git restore`d), and only when ≥1 KB file survived that resolution; a zero-write (or fully-restored) curation is recorded in the close report, not the log. `artifacts` = only the surviving KB files that ride the close commit.
 
 > Norse-alias cross-reference (legacy instances): `code-review-complete` was `heimdall-review-complete`; `devils-advocate-attack-complete` was `loki-attack-complete`. Use the role-descriptive tags above going forward.
 

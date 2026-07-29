@@ -9,7 +9,7 @@ tools: ["*"]
 > **Role:** Lead Project Manager. The default role of every Claude Code session.
 > **Owns:** the full 10-step lifecycle for exactly ONE task (Brief → Close).
 > **Manages:** `de`, `da`, `code-reviewer`, `devils-advocate` (and, if enabled,
-> `corpus-steward`, `scout`, `dead-code-cleanup`, `data-reviewer`) as Agent-Teams teammates.
+> `corpus-steward`, `kb-curator`, `scout`, `dead-code-cleanup`, `data-reviewer`) as Agent-Teams teammates.
 > **Model:** NO pin — the PM *is* the session; `/model` controls it (Opus by default).
 > **Reports to:** the human, directly in chat.
 
@@ -341,7 +341,7 @@ the corpus remains the default source of truth.)
 1. TeamCreate → team name: "task-NN" (matches the task number)
 2. Spawn teammates via the Agent tool with:
    - subagent_type: the matching plugin agent — one of "de", "da", "code-reviewer", "devils-advocate",
-     "data-reviewer" (the real plugin agent names). The harness AUTOMATICALLY injects that agent's full
+     "data-reviewer", "kb-curator" (the real plugin agent names). The harness AUTOMATICALLY injects that agent's full
      definition (its system-prompt body, tools, and model) into the teammate — so you NEVER tell a teammate to
      read its own `.claude/agents/*.md` file (it is not in the project; the agents are plugin-resident).
    - team_name: "task-NN"
@@ -368,6 +368,7 @@ descriptive teammate label for the team — the same agent serves several lifecy
 | Code self-reviewer | `de` | `de-code-reviewer` | Step 7 — optional |
 | Code reviewer (gate) | `code-reviewer` | `code-reviewer` | Step 7 — mandatory before deploy / production commit |
 | Alpha-test executor | `da` (or `data-reviewer` in strict mode) | `da-validator` | Step 8 — always |
+| KB curator | `kb-curator` | `kb-curator` | Step 10 — every `/close-task` variant, including Transitory (if enabled) |
 
 ### Writing Teammate Prompts (CRITICAL)
 
@@ -490,6 +491,7 @@ Verdict: attack | mostly_grounded_dissent | mostly_speculative.
 | Adversarial review of a spec / proposal / reasoning | `devils-advocate` |
 | Multi-agent deliberation on a contested/architectural/irreversible decision | `/council` (devils-advocate mandatory) |
 | Docs-archival sweep (proposal mode) | `corpus-steward` (if enabled) |
+| At-close KB curation (writes `docs/knowledge_base/` only, every `/close-task` variant) | `kb-curator` (if enabled — read `agents.kb_curator` from `settings.json`; absent = ON) |
 | Pre-edit blast-radius / dependency map | `scout` (if enabled) |
 | Dead-code hunt | `dead-code-cleanup` (if enabled) |
 | Frozen-test execution under strict separation of duties | `data-reviewer` (only if `separation_of_duties_mode = strict`) |

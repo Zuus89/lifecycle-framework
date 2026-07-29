@@ -120,11 +120,12 @@ One place per artifact type, so the folder is a corpus, not a pile.
 - **What:** Curated domain knowledge the agents read: glossary / metric definitions, data dictionary, business
   rules, chart guidance. **Seeded at init** from any initial docs the user provides.
 - **Why:** Grounds the agents in domain truth so specs and analysis are built against reality, not assumptions.
-  **Writes:** human-curated (seeded at init), maintained over time.
+  **Writes:** the **kb-curator** at every `/close-task` variant (dedup ladder, rewrite-in-place, append-only
+  `## Sources`); seeded at init from user-provided docs; manual human edits are the human-directed exception.
 
 ### `docs/_templates/`
 - **What:** The frontmatter-valid templates `/new-doc` scaffolds from: `spec, alpha_test, report, review_de,
-  review_da, review_code-reviewer, review_devils-advocate, council, handoff`.
+  review_da, review_code-reviewer, review_devils-advocate, council, handoff, kb_article`.
 - **Why:** Every governed doc starts valid (correct frontmatter, correct shape) → the corpus stays machine-checkable.
   Scaffolded per-project so projects can extend them.
 
@@ -181,7 +182,8 @@ One place per artifact type, so the folder is a corpus, not a pile.
 
 **The rule:** one Claude Code session runs **exactly one task**, Brief → Close — never a whole ticket. A ticket is
 the umbrella (many tasks → many sessions). A task too big for one session uses a *transitory close* at each boundary
-that persists the snapshot + memory, so the next session resumes exactly where this one stopped.
+that persists the snapshot and runs the kb-curator (durable knowledge → `docs/knowledge_base/`), so the next
+session resumes exactly where this one stopped.
 
 Numbering is the canonical 1–10 (the deck). `/log-activity` fires after **every** step; `/council` may be convened at
 **any** point. Three phases: **Frame (1–4) · Challenge then build (5–7) · Verify and close (8–10)**.
@@ -197,7 +199,7 @@ Numbering is the canonical 1–10 (the deck). `/log-activity` fires after **ever
 | 7 | **Implementation** | DE | The DE builds against the frozen spec, runs a self-review checklist (signatures, no hardcoded config, security, error handling, tests pass), writes the task report. **The code-reviewer gate runs here** before any deploy/commit (any CRITICAL → NOT SAFE). |
 | 8 | **Review** | PM + DA | The PM checks the report against acceptance criteria. The **DA runs the frozen alpha test** — binary pass/fail (collapsed SoD; in strict mode a separate `data-reviewer` runs it). |
 | 9 | **Validation** | Human | The human does the final acceptance check on the live result, and either accepts it or sends it back. *(The one human gate — see open decision.)* |
-| 10 | **Close** | PM | `/close-task` writes the final log entry, refreshes the snapshot + TODO, appends to the chronicle, conditionally re-audits architecture, writes to MCP memory, and moves the ticket to Done. |
+| 10 | **Close** | PM | `/close-task` writes the final log entry, refreshes the snapshot + TODO, appends to the chronicle, runs the kb-curator (session knowledge → `docs/knowledge_base/`), conditionally re-audits architecture, and moves the ticket to Done. The corpus (chronicle + snapshot + KB + INDEX) IS the persisted memory. |
 
 **Bias control (the spine):** the test is written before the code (Step 4), frozen before implementation (Step 6),
 and run against a result it could not influence (Step 8). **Separation of duties:** DA designs *and* (in collapsed
@@ -263,6 +265,17 @@ model (cost follows criticality), and is spawned by the PM as an Agent-Teams tea
   exhaustive inbound-reference safety check and a never-archive exclusion set (protected files, SSOT with live
   consumers, open-ticket dependents). **Never moves or deletes** — the PM executes. Realizes the deck's deferred
   "Auditor" idea safely.
+
+### kb-curator — `kb-curator` · default: ON · model: Opus 5
+- **Mandate:** The at-close knowledge-base curator. At **every** `/close-task` variant (Full, Research, AND
+  Transitory), ingests what the session committed and produced (report, spec, alpha-test result, chronicle tail,
+  diff), applies a notability gate ("when in doubt, don't create") and an evidence-cited dedup ladder against the
+  existing KB, then **WRITES directly — but only under `docs/knowledge_base/`**: duplicates skipped, stale articles
+  rewritten in place, genuinely new topics scaffolded from the `kb_article` template. Provenance lives in each
+  article's append-only `## Sources` table (which also makes the curator idempotent across transitory → full
+  closes). Its changes ride the close commit, so the diff stays reviewable. Boundary: the **write-mode, incremental,
+  KB-only** counterpart of the corpus-steward (periodic, whole-`docs/`, archival, proposal-only) — it never
+  deletes, moves, or merges files; restructuring is flagged, not executed.
 
 ### data-reviewer — `data-reviewer` · default: OFF (strict-SoD opt-in) · model: Opus
 - **Mandate:** A distinct QA agent that **runs the frozen alpha test at Step 8** while the DA only **designs** it

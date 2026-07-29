@@ -45,6 +45,15 @@
     "warehouses": {{DATABRICKS_WAREHOUSES_JSON}}
   },
 
+  "agents": {
+    "corpus_steward": {{AGENT_CORPUS_STEWARD}},
+    "kb_curator": {{AGENT_KB_CURATOR}},
+    "scout": {{AGENT_SCOUT}},
+    "dead_code_cleanup": {{AGENT_DEAD_CODE_CLEANUP}},
+    "data_reviewer": {{AGENT_DATA_REVIEWER}},
+    "separation_of_duties_mode": "{{SOD_MODE}}"
+  },
+
   "permissions": {
     "allow": [
       "Read(*)",

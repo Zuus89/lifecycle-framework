@@ -1,0 +1,63 @@
+---
+type: doc
+title: "KB — <placeholder: topic title>"
+status: living
+authority: ssot
+protection: normal
+affects: []
+depends_on: []
+created: <placeholder: YYYY-MM-DD>
+updated: <placeholder: YYYY-MM-DD>
+tags: []
+aliases: []
+last_reviewed: <placeholder: YYYY-MM-DD>
+owner: kb-curator
+---
+
+<!-- DELETE THIS HEADER BEFORE PUBLISHING -->
+
+# <placeholder: topic title>
+
+<!-- guidance: File goes in docs/knowledge_base/<kebab-slug>.md. ONE topic per article.
+     Durable domain knowledge only: glossary terms, business rules, data-dictionary facts,
+     schema surprises, platform gotchas, how-tos, architecture insights. NOT session status
+     (that is context_snapshot.md), NOT decisions of record (that is project_chronicle.md),
+     NOT routine progress (that is activity_log.jsonl).
+     CONFIDENTIALITY GATE: never record secrets, tokens, hostnames, or infrastructure
+     identifiers; apply the gate before any content leaves an internal/private boundary.
+     UPDATE model: rewrite affected sections in place — integrate the new fact, REMOVE the
+     stale claim. Never append a contradictory paragraph below an old one.
+     `aliases:` lists synonyms/abbreviations for this topic so the kb-curator's dedup grep
+     finds this article before creating a duplicate. Keep it current.
+     No `ticket:` field — KB articles accrete across tickets; provenance lives in ## Sources. -->
+
+> **Summary:** <placeholder: 2-3 sentences — the answer first, details below. A reader with
+> zero session context must understand this paragraph on its own.>
+
+## Facts
+
+<!-- guidance: The current, true statements about this topic. Each claim that turns stale is
+     REMOVED (rewritten) on update, never amended alongside its replacement. -->
+
+- <placeholder>
+
+## How-to / examples (optional — delete if empty)
+
+<!-- guidance: Commands, queries, or worked examples that make the facts actionable. -->
+
+## Related
+
+<!-- guidance: Repo-relative links to sibling KB articles, docs/architecture.md sections, or
+     schema docs. An unlinked article is invisible to the next session. -->
+
+- <placeholder>
+
+## Sources
+
+<!-- guidance: APPEND-ONLY — never rewrite or delete a row. One row per contributing session:
+     provenance survives body rewrites, and the kb-curator reads this table to detect
+     "this session already contributed" (idempotency across transitory → full closes). -->
+
+| Date | Ticket | Change |
+|---|---|---|
+| <placeholder: YYYY-MM-DD> | <placeholder: TICKET-ID or session id> | created |

@@ -136,10 +136,12 @@ function validateFile(filePath, content) {
     }
   }
 
-  // Rule 11: No template sentinel left in a published lifecycle artifact.
-  // Lifecycle artifacts live under docs/claude_tasks/; the _templates dir is
-  // excluded from the walk, so any sentinel here is an un-filled scaffold.
-  const isProductionFile = rel.startsWith('docs/claude_tasks/');
+  // Rule 11: No template sentinel left in a published artifact.
+  // Templates publish under docs/claude_tasks/ (lifecycle artifacts) and
+  // docs/knowledge_base/ (KB articles); the _templates dir is excluded from
+  // the walk, so any sentinel here is an un-filled scaffold.
+  const isProductionFile =
+    rel.startsWith('docs/claude_tasks/') || rel.startsWith('docs/knowledge_base/');
   if (isProductionFile && content.includes('DELETE THIS HEADER BEFORE PUBLISHING')) {
     hard('R11', 'Template sentinel "DELETE THIS HEADER BEFORE PUBLISHING" found in a published file — remove it');
   }

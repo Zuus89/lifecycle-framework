@@ -73,12 +73,19 @@ Then run the interview in **exactly this order**: A → B → C. Echo each captu
    | devils-advocate | `claude-opus-4-8` | `{{MODEL_DEVILS_ADVOCATE}}` |
 
    (Optional agents are fixed by policy: `corpus-steward`/`scout`/`dead-code-cleanup` = `sonnet`, `data-reviewer` =
-   `claude-opus-4-8`. Their pins live in the Tier-A agent frontmatter; here you only document the policy.)
-6. **Agent roster.** Core five always on. Toggles: `corpus-steward` **ON** by default; `data-reviewer` OFF (ON sets
-   `separation_of_duties_mode = strict`); `scout` OFF; `dead-code-cleanup` OFF. Record the enabled set + SoD mode.
+   `claude-opus-4-8`, `kb-curator` = `claude-opus-5`. Their pins live in the Tier-A agent frontmatter; here you only
+   document the policy.)
+6. **Agent roster.** Core five always on. Toggles: `corpus-steward` **ON** by default; `kb-curator` **ON** by
+   default (at-close KB curation on every `/close-task` variant — writes only `docs/knowledge_base/`);
+   `data-reviewer` OFF (ON sets `separation_of_duties_mode = strict`); `scout` OFF; `dead-code-cleanup` OFF.
+   Record the enabled set + SoD mode — **they are written to the `agents` block of `.claude/settings.json`**, the
+   machine-readable roster that `/close-task` and the PM read at runtime. (Re-running init on a project scaffolded
+   before this block existed simply ADDS it.)
 7. **Memory backend** → `{{MEMORY_BACKEND}}` (`corpus | basic-memory`). **Default `corpus`** — there is **no memory
-   MCP**: the project's markdown corpus *is* the knowledge graph (chronicle + snapshot + INDEX + `affects-lookup`).
-   Recall = read `project_chronicle.md` + `context_snapshot.md` + the INDEX, then grep / `affects-lookup` for a topic;
+   MCP**: the project's markdown corpus *is* the knowledge graph (chronicle + snapshot + knowledge base + INDEX +
+   `affects-lookup`).
+   Recall = read `project_chronicle.md` + `context_snapshot.md` + `docs/knowledge_base/` (topic articles) + the
+   INDEX, then grep / `affects-lookup` for a topic;
    record = write to the corpus (task report, reviews, and the chronicle via `/close-task`). Opt-in `basic-memory`
    adds an MCP over the repo's own Markdown (notes in `docs/memory/`); the corpus stays the source of truth either
    way. If the user picks `basic-memory`, honor the §6.4 enablement steps at scaffold time.
@@ -245,6 +252,8 @@ Resolve all before substitution; use **exactly** these names:
 | `{{DATABRICKS}}` (`on\|off`) / `{{DATABRICKS_ENVS}}` (comma list) / `{{DATABRICKS_PROFILE}}` / `{{DATABRICKS_DEFAULT_HOST}}` | C.3 |
 | `{{DATABRICKS_HOSTS_JSON}}` / `{{DATABRICKS_WAREHOUSES_JSON}}` | C.3 — JSON objects keyed by env (e.g. `{"dev":"...","prod":"..."}`); resolve to `{}` when `{{DATABRICKS}}=off` |
 | `{{MEMORY_BACKEND}}` (`corpus\|basic-memory`, default `corpus`) | A.7 |
+| `{{AGENT_CORPUS_STEWARD}}` / `{{AGENT_KB_CURATOR}}` / `{{AGENT_SCOUT}}` / `{{AGENT_DEAD_CODE_CLEANUP}}` / `{{AGENT_DATA_REVIEWER}}` | A.6 — bare JSON booleans (`true`/`false`, unquoted); defaults `true, true, false, false, false` |
+| `{{SOD_MODE}}` (`collapsed\|strict`) | A.6 — `strict` iff `data-reviewer` is ON, else `collapsed` |
 | `{{TODAY}}` | `date +%F` |
 
 (The default backend writes an **empty** `.mcp.json` (`{"mcpServers":{}}`) — the corpus is the knowledge graph, no
@@ -277,7 +286,8 @@ resolve there). If a template is absent, report it — don't fabricate.
   `GITHUB_TOKEN` **only if a script/MCP needs the GitHub API** (fetched from the selected account via
   `gh auth token --user <account>`) — git push itself uses the account's credential helper, not this.
 - **Memory backend:** the default (`{{MEMORY_BACKEND}} = corpus`) has **no memory MCP** — the markdown corpus
-  (`project_chronicle.md` + `context_snapshot.md` + INDEX + `affects-lookup`) *is* the knowledge graph; the
+  (`project_chronicle.md` + `context_snapshot.md` + `docs/knowledge_base/` + INDEX + `affects-lookup`) *is* the
+  knowledge graph; the
   scaffolded `.mcp.json` is empty (`{"mcpServers":{}}`). There is no `memory.jsonl` to create. Only when the user
   opted into `basic-memory` (A.7) do you run the §6.4 enablement (verify uv/uvx + Python 3.12+; write `.mcp.json` +
   `docs/memory/` + `.bmignore`; gitignore the SQLite index; extend the allowlist).
@@ -317,8 +327,8 @@ From the project root (print the exact command for the user if a step is blocked
    - **Git:** remote reachable (`git ls-remote` if a remote is set), on the intended branch, identity set; `gh auth
      status` if GitHub.
    - **MCP:** with the default `corpus` backend there is **no memory MCP** to verify — confirm `.mcp.json` is empty
-     (`{"mcpServers":{}}`) and that the corpus (chronicle + snapshot + INDEX) is in place; that *is* the knowledge
-     graph. If `{{MEMORY_BACKEND}} = basic-memory`, verify it per §6.4. Then verify `github` and the chosen tracker
+     (`{"mcpServers":{}}`) and that the corpus (chronicle + snapshot + knowledge base + INDEX) is in place; that
+     *is* the knowledge graph. If `{{MEMORY_BACKEND}} = basic-memory`, verify it per §6.4. Then verify `github` and the chosen tracker
      MCP (Linear / Atlassian) **at `{{MCP_SCOPE}}` (C.0)** — if absent, give the user the exact enable command for
      that scope; flag, don't block. Two extra checks:
      - **Shadowing (doc-backed):** if the same server name exists at more than one scope, warn which definition wins

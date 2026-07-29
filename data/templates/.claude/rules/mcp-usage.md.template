@@ -16,8 +16,8 @@ and you skip the server, explain why in the task report.
 
 ## Which servers this project uses
 - **memory** — DEFAULT: there is **no memory MCP**. The project's Markdown corpus *is* the
-  knowledge graph (chronicle + snapshot + INDEX + affects-lookup). OPT-IN: a project may
-  enable the `basic-memory` MCP at init — see §1.
+  knowledge graph (chronicle + snapshot + knowledge base + INDEX + affects-lookup). OPT-IN: a
+  project may enable the `basic-memory` MCP at init — see §1.
 - **github** — recommended. User-global prerequisite (not declared by the plugin).
 - **tracker** — `{{TRACKER}}`. Recommended. User-global prerequisite. The `/log-tracker`
   skill branches on the tracker chosen at init (Linear, or Atlassian for Jira). If
@@ -37,6 +37,8 @@ in the gitignored `.claude/.local/secrets.env`.
 memory server. There is **no `search_nodes` / `read_graph` / `create_entities`**. The graph is:
 - `docs/project_chronicle.md` (append-only) — decisions & history.
 - `docs/context_snapshot.md` — current-state handoff for the next session.
+- `docs/knowledge_base/` — durable topic articles (glossary, business rules, gotchas, how-tos),
+  curated by the kb-curator at every `/close-task`.
 - `docs/activity_log.jsonl` — per-step machine log.
 - `docs/INDEX.md` + `docs/index.json` — queryable index (`type`/`status`/`authority`,
   `depends_on`/`affects` relations).
@@ -44,13 +46,14 @@ memory server. There is **no `search_nodes` / `read_graph` / `create_entities`**
 
 **RECALL — how an agent remembers (session/task start, read before acting):**
 - Read `docs/project_chronicle.md` + `docs/context_snapshot.md` + the INDEX (`docs/INDEX.md`).
-- For a topic: grep the corpus / read the INDEX, and run `node scripts/affects-lookup.mjs <path>`
-  to see what depends on what you're about to change.
+- For a topic: check `docs/knowledge_base/` for a topic article first (grep titles AND each
+  article's `aliases:`), then grep the corpus / read the INDEX, and run
+  `node scripts/affects-lookup.mjs <path>` to see what depends on what you're about to change.
 
 **RECORD — how an agent persists (after a completed task):** write to the corpus — the task
 report (`docs/claude_tasks/reports/`), the reviews, and (via `/close-task`) the append to
-`docs/project_chronicle.md` plus the overwrite of `docs/context_snapshot.md`. The corpus is
-the memory; there is nothing else to write to.
+`docs/project_chronicle.md`, the overwrite of `docs/context_snapshot.md`, and the kb-curator's
+fold into `docs/knowledge_base/`. The corpus is the memory; there is nothing else to write to.
 
 **What to record:** task completion + date + key findings; corrections (wrong paths, broken
 assumptions discovered); decisions of record and their rationale; recurring failure modes.
@@ -159,8 +162,8 @@ in code; never record any of those in the corpus.
 
 ## Rule: don't ignore MCPs (and the corpus)
 Each prevents a concrete failure:
-- Skipping the **corpus memory** (chronicle/snapshot/INDEX) → the next session re-discovers
-  what this one already learned.
+- Skipping the **corpus memory** (chronicle/snapshot/knowledge base/INDEX) → the next session
+  re-discovers what this one already learned.
 - Skipping **github** → PR/CI state drifts from the local working tree.
 - Skipping **tracker** → the plan drifts from the team's source of truth.
 - Skipping **Databricks** config discipline → secrets/ids leak into code or the wrong env is hit.

@@ -29,8 +29,9 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
   committed `settings.json`). Without it the orchestration collapses to a single agent.
 - **Git** repository, **Node 24+** with `npm` (the scaffolder runs `npm install` + `husky`).
 - **Python** on PATH (only if the destructive-command guard hook is enabled).
-- **MCP servers**: `memory` (declared by the plugin, per-project path); `github` + your tracker (Linear or Atlassian
-  for Jira) available as user-global servers — `/lifecycle-init` verifies they are present.
+- **MCP servers**: none required by default — the markdown corpus (chronicle + snapshot + knowledge base + INDEX)
+  *is* the memory; `basic-memory` is an opt-in backend at init. `github` + your tracker (Linear or Atlassian for
+  Jira) — `/lifecycle-init` verifies they are present at the scope you choose.
 
 ---
 
@@ -43,11 +44,13 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
 
 ### What the plugin ships (Tier A)
 
-- **Agents** — `pm`, `de`, `da`, `code-reviewer`, `devils-advocate` (core); `corpus-steward` (on by default),
-  `data-reviewer` / `scout` / `dead-code-cleanup` (optional).
+- **Agents** — `pm`, `de`, `da`, `code-reviewer`, `devils-advocate` (core); `corpus-steward` and `kb-curator`
+  (on by default — the kb-curator folds every session's durable knowledge into `docs/knowledge_base/` at
+  `/close-task`), `data-reviewer` / `scout` / `dead-code-cleanup` (optional).
 - **Skills** — `/lifecycle-init`, `/close-task`, `/log-activity`, `/log-tracker`, `/council`, `/new-doc`,
   `/audit-corpus`.
-- **Hook** — a destructive-command guard. **MCP** — `memory` (per-project isolated knowledge graph).
+- **Hook** — a destructive-command guard. **MCP** — none by default (empty `.mcp.json`; the corpus — chronicle +
+  snapshot + knowledge base + INDEX — is the knowledge graph; `basic-memory` opt-in at init).
 
 ### What `/lifecycle-init` scaffolds (Tier B)
 

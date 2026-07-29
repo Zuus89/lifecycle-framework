@@ -95,10 +95,20 @@ export function parseFrontmatter(content) {
 
 /**
  * Returns absolute paths of every .md file under dir, recursively, skipping
- * any path matched by shouldExclude().
+ * any path matched by shouldExclude(). A single .md FILE path is also
+ * accepted and returned as-is (subject to the same exclusion check) — so
+ * per-file invocations (`validate-frontmatter.mjs docs/knowledge_base/x.md`)
+ * validate that file instead of silently checking nothing.
  */
 export function collectMdFiles(dir, repoRoot) {
   const results = [];
+  try {
+    const target = statSync(dir);
+    if (target.isFile()) {
+      if (extname(dir) === '.md' && !shouldExclude(dir, repoRoot)) results.push(dir);
+      return results;
+    }
+  } catch { return results; }
   let entries;
   try { entries = readdirSync(dir); } catch { return results; }
   for (const entry of entries) {

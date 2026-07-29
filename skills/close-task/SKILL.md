@@ -1,6 +1,6 @@
 ---
 name: close-task
-description: Step-10 lifecycle closer. Three variants — Full lifecycle close (spec + alpha test + report done, human-validated at Step 9), Research / non-lifecycle close (investigation, spike, governance/docs — no spec, no alpha test, no forced ticket Done), and Transitory close (multi-session boundary — snapshot only). Refreshes the context snapshot and TODO, appends to the chronicle on a decision of record, conditionally re-audits architecture from live sources, rebuilds the INDEX, and moves the ticket to Done. The chronicle + context_snapshot ARE the persisted memory. Tracker-parameterized (Jira | Linear | none, read from .claude/settings.json). Honors protected (proposed for human authorization) and append-only doc rules.
+description: Step-10 lifecycle closer. Three variants — Full lifecycle close (spec + alpha test + report done, human-validated at Step 9), Research / non-lifecycle close (investigation, spike, governance/docs — no spec, no alpha test, no forced ticket Done), and Transitory close (multi-session boundary — snapshot + KB curation). At EVERY variant the kb-curator (if enabled) folds the session's durable knowledge into docs/knowledge_base/. Refreshes the context snapshot and TODO, appends to the chronicle on a decision of record, conditionally re-audits architecture from live sources, rebuilds the INDEX, and moves the ticket to Done. The chronicle + context_snapshot + knowledge base ARE the persisted memory. Tracker-parameterized (Jira | Linear | none, read from .claude/settings.json). Honors protected (proposed for human authorization) and append-only doc rules.
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, TodoWrite
 ---
 
@@ -14,7 +14,9 @@ This skill is **plugin-resident** and **stack-/tracker-neutral**. It reads every
 assume a stack, tracker, table, or path. Read these first, then act:
 
 - **`.claude/settings.json`** — `tracker` (`jira | linear | none`) and its connection identity, `stack`
-  (`web | data | generic`), enabled MCP servers, `separation_of_duties_mode`.
+  (`web | data | generic`), enabled MCP servers, and the **`agents` roster block** (`agents.kb_curator`,
+  `agents.corpus_steward`, …, `agents.separation_of_duties_mode`). An absent block or key means the documented
+  defaults: `kb-curator` and `corpus-steward` ON, the rest OFF, SoD `collapsed`.
 - **`corpus.config.mjs`** — per-project paths, ticket prefix, project slug, the corpus script names.
 - **`CLAUDE.md`** — model policy, lifecycle numbering, role roster, communication language, protected-doc list.
 - **`.claude/rules/*.md`** — especially `frontmatter.md` (the taxonomy SSOT) and `mcp-usage.md` (MCP server usage).
@@ -29,7 +31,7 @@ The variant decides which sections run. Choose before touching any file.
 |---|---|---|
 | **Full lifecycle close** | A 10-step task is done — spec + alpha test + report exist, the human validated at Step 9 (or a sanctioned shortcut applies) | §1 (lifecycle read) + §2 + §3 + §4 + §5 |
 | **Research / non-lifecycle close** | Investigation, spike, or governance/docs work — no spec, no alpha test, maybe no ticket | §1 (research read) + §2 + §4 + §5. **SKIP §3** (no spec flip/archive, no alpha test, no forced ticket Done) |
-| **Transitory close** | A multi-session task at a session boundary — it continues next session | ONLY: overwrite `docs/context_snapshot.md` + `/log-activity paused`. The snapshot IS the persisted memory the next session resumes from. **No** chronicle, **no** ticket Done, the spec stays `in_progress` |
+| **Transitory close** | A multi-session task at a session boundary — it continues next session | ONLY: overwrite `docs/context_snapshot.md` + **KB curation (§2 "Knowledge-base curation")** + INDEX rebuild *if the curator wrote* + `/log-activity paused` + **§5 "Commit (Transitory close)"** (curation bundle, only if the curator wrote) + **§5 Report**. The snapshot IS the persisted memory the next session resumes from; the KB keeps what must outlive the task. **No** chronicle, **no** ticket Done, the spec stays `in_progress` |
 
 A multi-session lifecycle task gets a **transitory close at each boundary** and **exactly one full close at the end**.
 
@@ -76,24 +78,49 @@ keeps it a snapshot, not a log. Current state only, facts only, kept short:
 - Current state of any open decisions and the deploy/pipeline status if the stack has one.
 
 ### Distilled knowledge — folded into the corpus
-There is no separate memory write: **the chronicle + context_snapshot ARE the persisted memory.** Distilled
-knowledge that future sessions need is recorded in the corpus, not in a side store. Fold each kind into its home:
+There is no separate memory write: **the chronicle + context_snapshot + knowledge base ARE the persisted memory.**
+Distilled knowledge that future sessions need is recorded in the corpus, not in a side store. Fold each kind into
+its home:
 
 **What to capture, and where it lands:**
 - Schema surprises (unexpected types, nullability, format quirks), platform gotchas, data patterns (cardinality
-  anomalies, NULL rates, cross-source inconsistencies) → the task report and `docs/knowledge_base/` / `docs/schema/`
-  (see §4); a baseline count that anchors future work goes in the report and, if it shaped a decision, the snapshot.
+  anomalies, NULL rates, cross-source inconsistencies) → the task report at the time; **the KB-bound share is
+  folded in by the kb-curator (next subsection) — do not hand-write `docs/knowledge_base/` in parallel with it**
+  (`docs/schema/` stays per §4); a baseline count that anchors future work goes in the report and, if it shaped a
+  decision, the snapshot.
 - Decisions that change how future work is done → `project_chronicle.md` (a decision of record) and `strategy.md`.
 - Current-state anchors the next session needs immediately → `context_snapshot.md`.
 
 **Do NOT re-record:** routine progress (already in the activity log / tracker); anything already in a report;
 anything derivable from code or `git log`; secrets, tokens, hostnames, or infrastructure identifiers.
 
-The activity log is the audit trail; the chronicle + snapshot + report are the distilled knowledge — keep them
-distinct.
+The activity log is the audit trail; the chronicle + snapshot + report + KB articles are the distilled knowledge —
+keep them distinct.
 
 (If the project enabled basic-memory, you may also use its write_note/search_notes/build_context tools — but the
 corpus remains the default source of truth.)
+
+### Knowledge-base curation — kb-curator (ALL variants, including Transitory)
+
+Read `agents.kb_curator` from `.claude/settings.json` (absent block/key = **enabled**, the default). If enabled,
+spawn the `kb-curator` teammate with a self-contained brief: the variant, the ticket id, the session id, and the
+diff window (last close → now). The curator ingests the session's outputs, applies its notability gate and dedup
+ladder against the existing KB, and writes ONLY under `docs/knowledge_base/` — duplicates skipped, stale articles
+rewritten in place, genuinely new topics created from `docs/_templates/kb_article.md` — then validates its own
+files and returns a **filing plan**. Its changes ride the close commit, so the diff stays reviewable.
+
+The PM (you) owns everything downstream. **First resolve every FAILED entry in the filing plan** (fix the file or
+`git restore` it — a file with invalid frontmatter never rides the close commit). Then, if ≥1 KB file **survived
+validation and your fix-or-restore decision**, log `/log-activity kb-curated` (step 10 on a Full/Research close,
+`null` on Transitory; `agent: "kb-curator"`; `artifacts` = only the surviving KB files — restored files are noted
+in the close report instead), and let the next subsection's INDEX rebuild pick up the frontmatter changes. The
+curator NEVER rebuilds the INDEX, logs, or commits — those are yours.
+
+If Agent Teams is unavailable or the spawn fails, run the same protocol inline yourself, following
+`kb-curator`'s rules (the `docs/knowledge_base/**` write allow-list included). If curation fails (validation
+cannot be fixed, evidence unreadable), report it loudly in the close report and close anyway — a failed curation
+is skipped-and-reported, never a blocked close. If `agents.kb_curator` is explicitly `false`, note
+"KB curation: disabled" in the close report and skip this subsection.
 
 ### Index rebuild — unconditional when frontmatter changed
 If any frontmatter changed this session, rebuild the corpus index by running the project's build-index script
@@ -190,7 +217,7 @@ diff in chat and wait for the human's approval before applying it.
 | `docs/strategy.md` | a decision of record was made (new threshold, new approach, design change) | **PROTECTED.** Lands in the Decision Log. A `/council` verdict counts as approval for its own entry. Propose; human authorizes. |
 | `CLAUDE.md` | a governance-level reference changed (new skill, new convention, a TBD resolved) | **PROTECTED.** Propose the diff; wait for approval. |
 | repository doc-structure guide | the repo structure, folders, or an update protocol changed | PM-maintained SSOT; flag structural changes to the human. |
-| `docs/knowledge_base/` | agent-grounding content changed (glossary, data dictionary, business rules) | Per the repo guide; apply a confidentiality gate before any content leaves an internal/private boundary. |
+| `docs/knowledge_base/` | — handled by the **kb-curator in §2 (all variants)** — do not update here in parallel | Manual edits are the human-directed exception. The confidentiality gate applies either way (no secrets, tokens, hostnames, or infrastructure identifiers). |
 | `docs/schema/` (data stack only) | the data layer changed (gold tables, semantic model) | Re-audit the live source; keep the directory split the project defines. |
 | `README.md` | the repo-visitor-visible status changed (phase transition, major capability landed) | Normal doc. |
 
@@ -211,9 +238,15 @@ for authorization — the PM does not write it unilaterally.
 ## 5. Commit and report
 
 ### Commit (Full close)
-Stage the index files, the archived/updated spec, and any authorized doc edits, then commit on the task branch
-(`1 ticket = 1 branch = 1 PR`; never force-push; never commit to the default branch directly). Let the post-commit
-hook append the `committed` activity-log line.
+Stage the index files, the archived/updated spec, any `docs/knowledge_base/` files the kb-curator wrote, and any
+authorized doc edits, then commit on the task branch (`1 ticket = 1 branch = 1 PR`; never force-push; never commit
+to the default branch directly). Let the post-commit hook append the `committed` activity-log line.
+
+### Commit (Transitory close)
+If the kb-curator wrote, commit a curation-only bundle on the task branch: `git add` the **explicit paths**
+(`docs/knowledge_base/<files>`, `docs/INDEX.md`, `docs/index.json`, `docs/activity_log.jsonl`) and commit — e.g.
+`chore(kb): transitory-close curation <TICKET>`. **Never `git add -A`** — unrelated dirty working-tree files stay
+untouched at a session boundary. If the curator wrote nothing, the transitory close commits nothing, as before.
 
 ### Report
 State the variant and what was updated vs skipped. Examples:
@@ -222,6 +255,7 @@ State the variant and what was updated vs skipped. Examples:
 ```
 Variant: Full lifecycle close
 Updated: project_chronicle.md (decision of record), context_snapshot.md, TODO.md (status-sync), INDEX, spec (done + archived)
+KB curation: 1 updated (knowledge_base/billing-rules.md — stale cutoff rewritten), 2 skipped (dup), 0 created
 Conditionally updated: architecture.md (§schema — proposed diff for migration 0032 + RPC fix; AWAITING human authorization)
 Tracker: Jira PROJ-142 → Completion Notes appended, transitioned to Done
 Skipped: strategy.md (no decision of record beyond the one chronicled)
@@ -231,7 +265,8 @@ Skipped: strategy.md (no decision of record beyond the one chronicled)
 ```
 Variant: Research / non-lifecycle close
 Updated: docs/research/2026-06-29_slug.md (placed + frontmatter), context_snapshot.md, INDEX
-Conditionally updated: none (repository guide / schema / KB unchanged)
+KB curation: 1 created (knowledge_base/adls-auth-quirks.md), filing plan clean
+Conditionally updated: none (repository guide / schema unchanged)
 Chronicle: skipped (no decision of record)
 Tracker: comment on PROJ-123 (no Done — investigation continues)
 Skipped (lifecycle-only): spec flip/archive, alpha test, ticket Done
@@ -241,5 +276,6 @@ Skipped (lifecycle-only): spec flip/archive, alpha test, ticket Done
 ```
 Variant: Transitory close (session boundary)
 Updated: context_snapshot.md (overwritten — the persisted memory), activity log (paused)
+KB curation: 1 updated (knowledge_base/gold-layer-grain.md — Sources row appended), INDEX rebuilt, curation bundle committed
 Spec: stays in_progress. No chronicle, no tracker Done. Resume next session from the snapshot.
 ```

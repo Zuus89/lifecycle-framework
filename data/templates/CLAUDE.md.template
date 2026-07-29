@@ -59,13 +59,15 @@ with **read-only advisory/cleanup roles on a cheaper model**. Cost follows criti
 | Code reviewer (deploy gate) | `code-reviewer` | `{{MODEL_CODE_REVIEWER}}` | pinned in `code-reviewer` agent frontmatter |
 | Devil's advocate (adversary) | `devils-advocate` | `{{MODEL_DEVILS_ADVOCATE}}` | pinned in `devils-advocate` agent frontmatter |
 | Corpus steward (read-only) | `corpus-steward` | `sonnet` | pinned in agent frontmatter |
+| KB curator (at-close, writes KB only) | `kb-curator` | `claude-opus-5` | pinned in agent frontmatter; ON by default |
 | Dead-code cleanup (read-only) | `dead-code-cleanup` | `sonnet` | pinned in agent frontmatter |
 | Data reviewer (strict-SoD opt-in) | `data-reviewer` | `claude-opus-4-8` | pinned in agent frontmatter; OFF by default |
 
 **Notes:**
 - The reasoning-critical and checked-downstream roles (DE, DA, code-reviewer, devils-advocate) run Opus.
   The read-only sweep roles (corpus-steward, dead-code-cleanup) run Sonnet — the documented sufficient case
-  and the real cost saver.
+  and the real cost saver. The **kb-curator** runs Opus despite being an optional role: its dedup/update
+  verdicts write directly to the KB without a proposal gate — the only human check is the close-commit diff.
 - **Version-pinned intentionally** where the frontmatter names a specific Opus build: re-evaluate the pin on
   the next Opus release rather than letting an alias auto-upgrade.
 - **Skills** (`/close-task`, `/log-activity`, `/log-tracker`, `/council`, `/new-doc`, `/audit-corpus`) inherit
@@ -83,8 +85,9 @@ Execute in order at every session start:
 3. Read `docs/architecture.md` — the live system as built TODAY (tech stack, topology, data flow). **Mandatory
    once it exists** (it is created the first time the system has architecture to record). Never write
    architectural assumptions from memory — it is re-audited from live sources, not recalled.
-4. Load corpus context (chronicle + snapshot + INDEX): read `docs/project_chronicle.md` (decisions & history) +
-   `docs/context_snapshot.md` (current-state handoff) + the INDEX. For a topic, grep the corpus / read the INDEX /
+4. Load corpus context (chronicle + snapshot + KB + INDEX): read `docs/project_chronicle.md` (decisions & history) +
+   `docs/context_snapshot.md` (current-state handoff) + the INDEX. For a topic, grep the corpus — **including
+   `docs/knowledge_base/` (topic articles the kb-curator maintains; check `aliases:` too)** — / read the INDEX /
    run `scripts/affects-lookup.mjs` — the corpus *is* the memory; there is no `search_nodes` / `read_graph`.
    (If the project enabled basic-memory, you may also use its `search_notes`/`build_context` tools — but the
    corpus remains the default source of truth.)
@@ -101,8 +104,8 @@ Execute in order at every session start:
 
 **One Claude Code session runs exactly one task, Brief → Close — never a whole ticket.** A ticket is the
 umbrella (many tasks → many sessions). A task too big for one session uses a **transitory close** at each
-boundary that persists the snapshot + chronicle to the corpus, so the next session resumes exactly where this
-one stopped.
+boundary that persists the snapshot and runs the kb-curator (durable knowledge → `docs/knowledge_base/`), so the
+next session resumes exactly where this one stopped.
 
 Three phases: **Frame (1–4) · Challenge then build (5–7) · Verify and close (8–10).**
 
@@ -124,7 +127,8 @@ Three phases: **Frame (1–4) · Challenge then build (5–7) · Verify and clos
                                       alpha test -> binary pass/fail.
  9. Validation       Human            Final acceptance check on the live result: accept, or send it back.
 10. Close            pm               /close-task: final log line, refresh snapshot + TODO, append chronicle,
-                                      conditional architecture re-audit, rebuild INDEX, move ticket to Done.
+                                      kb-curator folds session knowledge into docs/knowledge_base/, conditional
+                                      architecture re-audit, rebuild INDEX, move ticket to Done.
 ```
 
 **Rules:**
@@ -176,6 +180,7 @@ Agent-Teams teammates, or invoked explicitly.
 | Role | Agent | Mandate | Default |
 |------|-------|---------|---------|
 | **Corpus steward** | `corpus-steward` *(formerly mimir)* | Read-only docs-governance archival steward (PROPOSAL MODE). Sweeps `docs/`, writes a dated archival/cleanup manifest with an exhaustive inbound-reference safety check + a never-archive exclusion set. **Never moves or deletes** — the PM executes. | ON |
+| **KB curator** | `kb-curator` | At every `/close-task` variant (Full, Research, Transitory), folds the session's durable knowledge into `docs/knowledge_base/`: notability gate, evidence-cited dedup ladder, stale articles rewritten in place, new topics from the `kb_article` template, append-only `## Sources` provenance. **WRITES — but only under `docs/knowledge_base/`**; changes ride the close commit. Never touches INDEX/log/chronicle/snapshot. | ON |
 | **Scout** | `scout` | Pre-edit blast-radius / dependency analysis: maps inbound deps (who imports me = blast radius) + outbound deps, flags circular-dependency risk and boundary violations before an edit. | OFF |
 | **Dead-code cleanup** | `dead-code-cleanup` *(formerly fenrir)* | Dead-code hunter: unused functions/imports/modules, orphaned files, dead endpoints, stale TODO/FIXME. Read-only by default; deletes only on explicit approval, then re-validates. | OFF |
 | **Data reviewer** | `data-reviewer` | **Strict-SoD opt-in only.** Runs the frozen alpha test at Step 8 while the DA only designs it (full separation of duties). | OFF |
@@ -192,7 +197,7 @@ Plugin-resident skills (installed once; triggered by slash command or the `Skill
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
-| Close Task | `/close-task` | Step-10 closer: append chronicle, overwrite context_snapshot, status-sync `TODO.md`, conditional `architecture.md` re-audit, rebuild INDEX, move the ticket to Done + Completion Notes. The chronicle + snapshot + INDEX *are* the persisted memory. Variants: full / research / transitory multi-session. |
+| Close Task | `/close-task` | Step-10 closer: append chronicle, overwrite context_snapshot, status-sync `TODO.md`, conditional `architecture.md` re-audit, rebuild INDEX, move the ticket to Done + Completion Notes. **Every variant runs the kb-curator (if enabled) to fold session knowledge into `docs/knowledge_base/`.** The chronicle + snapshot + KB + INDEX *are* the persisted memory. Variants: full / research / transitory multi-session. |
 | Log Activity | `/log-activity` | Append-only JSONL writer: one record per lifecycle step → `docs/activity_log.jsonl`. The cheap, tracker-free half of the dual-write. `committed` lines are written automatically by the `.husky/post-commit` hook. |
 | Log to Tracker | `/log-tracker` | Dual-write milestone logger: a `/log-activity` append + a mirrored {{TRACKER}} comment, cross-referenced by id. Reserve for milestones worth surfacing (Step 1 start, blockers, decisions, Step 10 close). |
 | Council | `/council` | 7-step multi-agent deliberation for contested / architectural / irreversible decisions. The devils-advocate is a mandatory participant. Writes a council doc with explicit reopen criteria. |
@@ -237,7 +242,7 @@ Plugin-resident skills (installed once; triggered by slash command or the `Skill
 | Feature branches | per `.claude/rules/git-workflow.md` (see naming below) |
 | Databricks | {{DATABRICKS}} (full block in §12.3 when `on`) |
 | Node toolchain | Node 24 / npm (corpus tooling: frontmatter validation, INDEX build, post-commit logging) |
-| Memory backend | **corpus** (default — the Markdown corpus is the knowledge graph: chronicle + snapshot + INDEX) or **basic-memory** (opt-in, set at init; adds note tools over `docs/memory/`) |
+| Memory backend | **corpus** (default — the Markdown corpus is the knowledge graph: chronicle + snapshot + knowledge base + INDEX) or **basic-memory** (opt-in, set at init; adds note tools over `docs/memory/`) |
 
 **Branch naming by stack** (`1 ticket = 1 branch = 1 PR` — see §12.1):
 - **web / generic** → `feat/{{TRACKER_KEY}}-NNN-slug`, `fix/{{TRACKER_KEY}}-NNN-slug` — branched off
