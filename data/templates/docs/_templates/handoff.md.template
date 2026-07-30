@@ -11,6 +11,7 @@ created: <placeholder: YYYY-MM-DD>
 updated: <placeholder: YYYY-MM-DD>
 tags: []
 task_number: <placeholder: integer>
+next_action: "<placeholder: the single next step for the resuming session>"
 ---
 
 <!-- DELETE THIS HEADER BEFORE PUBLISHING -->
@@ -18,8 +19,11 @@ task_number: <placeholder: integer>
 # Handoff — Task <placeholder: NN>: <placeholder: short title>
 
 <!-- guidance: File goes in docs/claude_tasks/handoffs/YYYY-MM-DD_NN_slug_handoff.md.
-     A handoff is written at a session boundary inside a multi-session task (a "transitory
-     close") so the next session resumes cold without re-discovery.
+     A handoff is the durable, committed twin of docs/context_snapshot.md for one task —
+     written by /handshake out at a machine boundary (git-remote transport), or manually via
+     /new-doc handoff at an ordinary multi-session boundary, so the next session resumes cold
+     without re-discovery. (A bare transitory close writes only the snapshot; synced-folder
+     transport writes no per-boundary handoff — the snapshot itself syncs.)
      CURRENT-STATE FACTS ONLY — no history (that lives in project_chronicle.md), no machine
      trace (that lives in activity_log.jsonl). Keep it short. authority: secondary. -->
 

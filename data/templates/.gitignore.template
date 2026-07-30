@@ -15,6 +15,7 @@ secrets.env
 # --- Per-session handoff (regenerated every close; not history) ---
 docs/context_snapshot.md
 .claude/log_session
+.claude/handshake.json
 
 # --- Node / tooling ---
 node_modules/

@@ -53,7 +53,9 @@ The project's current state must be reconstructable from a handful of files, so 
 - **What:** The single "where we are" handoff for the next session. Current state only (not history), kept short,
   facts only. Overwritten each close.
 - **Why:** Lets the next session resume **without re-discovery**. The deliberate overwrite keeps it a snapshot, not a log.
-- **Writes:** close-task (overwrite). **When:** every session boundary. Usually gitignored.
+- **Writes:** close-task (overwrite). **When:** every session boundary. Usually gitignored. Its durable,
+  **committed** twin for one task is `docs/claude_tasks/handoffs/` (Part 1 D) — the machine-crossing form
+  `/handshake` uses on git-remote transport.
 
 ### `docs/activity_log.jsonl` — **APPEND-ONLY**
 - **What:** The machine-readable audit trail. One JSON line per lifecycle step plus one per commit. Fields:
@@ -111,6 +113,17 @@ One place per artifact type, so the folder is a corpus, not a pile.
   and its **reopen criteria**.
 - **Why:** Contested/architectural/irreversible decisions get a durable, reviewable record — including under what
   conditions the decision may be reopened. **Writes:** `/council`.
+
+### `docs/claude_tasks/handoffs/` — durable session/machine handoffs
+- **What:** Committed handoff docs (`type: handoff`, with `next_action:`) — the durable twin of the gitignored
+  `docs/context_snapshot.md` for one task: state in force, what the session did, the exact next action,
+  carry-over, environment notes.
+- **Why:** The snapshot is per-machine and gitignored — it cannot cross machines by git. The handoff rides git,
+  so `/handshake in` regenerates the snapshot cold on the arriving machine. Extends "state is files, not
+  memory" across machines, not just sessions. (On the synced-folder transport the snapshot itself syncs, so no
+  per-boundary handoff doc is written — see `/handshake`.)
+- **Writes:** PM — via `/handshake out` at a machine boundary (git-remote transport); manually via
+  `/new-doc handoff` at an ordinary multi-session boundary.
 
 ### `docs/audits/`
 - **What:** Output home for `/audit-corpus` health reports (tiered High/Medium/Low) and the corpus-steward's

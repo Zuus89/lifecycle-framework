@@ -174,6 +174,7 @@ function groupByType(entries) {
     report: [],
     review: [],
     council: [],
+    handoff: [],
     doc: [],
     archive: [],
     agent: [],
@@ -341,6 +342,20 @@ function buildIndexMd(groups, mermaid, latestSourceUpdate, totalFiles, existingC
       e.fm.topic || '—',
       e.fm.decision_id != null ? String(e.fm.decision_id) : '—',
       e.fm.participants ? e.fm.participants.join(', ') : '—',
+      link(basename(e.path), e.path),
+    ])
+  ));
+
+  // Handoffs
+  const handoffs = groups.handoff.sort((a, b) => (a.path > b.path ? 1 : -1));
+  lines.push(`## Handoffs (${handoffs.length})`);
+  lines.push('');
+  lines.push(renderTable(
+    ['title', 'ticket', 'next_action', 'path'],
+    handoffs.map(e => [
+      truncate(e.fm.title, 50),
+      e.fm.ticket || '—',
+      truncate(e.fm.next_action, 60),
       link(basename(e.path), e.path),
     ])
   ));

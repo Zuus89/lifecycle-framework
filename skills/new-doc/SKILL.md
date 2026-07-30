@@ -69,7 +69,8 @@ The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task n
    - `review_de` / `review_da` / `review_code-reviewer` / `review_devils-advocate` → set `reviewer:` to the matching role (`de | da | code-reviewer | devils-advocate`); leave the verdict as a placeholder until the review actually runs. The `code-reviewer` verdict enum is `SAFE | NON-BLOCKING | NOT SAFE`; the `devils-advocate` verdict enum is `attack | mostly_grounded_dissent | mostly_speculative`.
    - `council` → `status: pending` until the human delivers the Step 7 verdict (then `decided` / `open`).
    - `report` → link it to its spec via `depends_on:` (the spec path) so the report/spec chain resolves in the index.
-   - `handoff` → `status: snapshot`, `authority: secondary`; current-state facts only, no history.
+   - `handoff` → `status: snapshot`, `authority: secondary`, `next_action:` = the exact first OPEN item (the
+     single next step for the resuming session); current-state facts only, no history.
    - `kb_article` → `status: living`, `authority: ssot`, `owner: kb-curator`; **one topic, one article** — grep
      `docs/knowledge_base/` (including every article's `aliases:`) for the topic before creating (the kb-curator's
      dedup ladder is the reference procedure); fill the first `## Sources` row; the `## Sources` section is

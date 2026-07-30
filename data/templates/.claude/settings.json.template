@@ -33,7 +33,16 @@
     "repo": "{{GITHUB_REPO}}",
     "host": "{{GIT_HOST}}",
     "branch": "{{GIT_BRANCH}}",
-    "defaultBranch": "{{GIT_DEFAULT_BRANCH}}"
+    "defaultBranch": "{{GIT_DEFAULT_BRANCH}}",
+    "account": "{{GIT_ACCOUNT}}"
+  },
+
+  "mcp": {
+    "scope": "{{MCP_SCOPE}}"
+  },
+
+  "handshake": {
+    "transport": "{{HANDSHAKE_TRANSPORT}}"
   },
 
   "databricks": {

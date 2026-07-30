@@ -35,6 +35,11 @@ The variant decides which sections run. Choose before touching any file.
 
 A multi-session lifecycle task gets a **transitory close at each boundary** and **exactly one full close at the end**.
 
+**Machine boundary?** If the session ends because work moves to the user's OTHER machine, do not run a bare
+Transitory close — run **`/handshake out`**, which wraps this exact Transitory variant and adds the transport
+steps (sync verification on a synced-folder repo; WIP transport commit + durable handoff doc + push on a
+git-remote repo).
+
 ## 1. Read context
 
 Read what the session actually produced before writing anything.
@@ -247,6 +252,8 @@ If the kb-curator wrote, commit a curation-only bundle on the task branch: `git 
 (`docs/knowledge_base/<files>`, `docs/INDEX.md`, `docs/index.json`, `docs/activity_log.jsonl`) and commit — e.g.
 `chore(kb): transitory-close curation <TICKET>`. **Never `git add -A`** — unrelated dirty working-tree files stay
 untouched at a session boundary. If the curator wrote nothing, the transitory close commits nothing, as before.
+(The `/handshake out` WIP transport commit on a git-remote repo is a different, earlier commit with its own
+sanctioned `git add -A` — see that skill; the explicit-paths rule here governs the curation bundle only.)
 
 ### Report
 State the variant and what was updated vs skipped. Examples:

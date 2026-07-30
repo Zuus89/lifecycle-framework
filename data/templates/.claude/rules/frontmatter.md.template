@@ -46,7 +46,7 @@ shared object whose dependents were never identified). Token reduction is a seco
 
 ```yaml
 ---
-type: spec | report | review | council | doc | rule | agent | skill | archive | audit | handoff
+type: spec | report | review | alpha_test | council | doc | rule | agent | skill | archive | audit | handoff
 title: "Human-readable short title"
 ticket_id: {{TRACKER_KEY}}-432   # primary key when task-scoped; null for non-task docs
 status: draft | active | in_progress | done | blocked | superseded | abandoned | living | snapshot | open | answered | decided | pending
@@ -125,16 +125,18 @@ aliases: []                    # KB articles (docs/knowledge_base/): synonyms/ab
                                # kb-curator's dedup grep — keep current, one topic per article
 ```
 
-### `handoff` — in `docs/claude_tasks/*` (multi-session task handoff)
+### `handoff` — in `docs/claude_tasks/handoffs/` (session / machine handoff)
 
 ```yaml
 task_number: 49
-ticket_id: {{TRACKER_KEY}}-403
+ticket: {{TRACKER_KEY}}-403
 next_action: "<the single next step for the resuming session>"
 ```
 
-> A `handoff` is the artifact a *transitory close* writes when a task spans more than one
-> session (see the lifecycle). It is the durable form of `context_snapshot.md` for one task.
+> A `handoff` is the durable, committed twin of `docs/context_snapshot.md` for one task.
+> Written by **`/handshake out`** at a machine boundary (git-remote transport), or manually via
+> `/new-doc handoff` at an ordinary multi-session boundary. A bare transitory close writes only
+> the snapshot; on synced-folder transport no handoff doc is written (the snapshot itself syncs).
 
 ### `agent`, `skill`, `rule` — in `agents/`, `skills/`, `.claude/rules/**/*.md`
 
@@ -303,7 +305,7 @@ PUBLISHING"** sentinel that the validator flags (rule §7.11) if left in a publi
 | `review_code-reviewer.md` | Code-reviewer severity-tiered findings + deploy verdict |
 | `review_devils-advocate.md` | Devils-advocate ranked, evidence-grounded objections |
 | `council.md` | Council verdict with the deliberation protocol + reopen criteria |
-| `handoff.md` | Multi-session task handoff (transitory close) |
+| `handoff.md` | Durable session/machine handoff — written by `/handshake out` (git-remote transport) or `/new-doc handoff` |
 | `kb_article.md` | Knowledge-base article (`type: doc`, `status: living`, `authority: ssot`; one topic per article, append-only `## Sources` provenance; written by the kb-curator at close or via `/new-doc`) |
 
 ---

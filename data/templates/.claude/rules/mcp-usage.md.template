@@ -31,6 +31,22 @@ in the gitignored `.claude/.local/secrets.env`.
 
 ---
 
+## 0. MCP scope — where this project's servers are configured
+
+Chosen ONCE at `/lifecycle-init` (C.0) and recorded in committed `.claude/settings.json` →
+`"mcp": { "scope": "..." }`. The three scopes and where they live: `local` = this project's entry in
+`~/.claude.json` · `project` = the committed `.mcp.json` · `user` = `~/.claude.json` root. Precedence
+`local > project > user`, whole-entry override.
+
+**Two-machine consequence:** `local` and `user` scopes DO NOT travel with the repo. On the user's other
+machine, `/handshake in` verifies the expected servers (tracker MCP, `github`, stack MCPs) exist at the
+recorded scope and, when missing, offers the exact `claude mcp add --scope <scope> <name> ...` command —
+it never adds them silently.
+
+**Windows hazard (local scope):** `~/.claude.json` may hold TWO entries for the same project differing
+only in drive-letter case (`c:/...` vs `C:/...`); `claude mcp add` writes only the cwd's casing. When
+verifying, check both entries and mirror the server into the missing one.
+
 ## 1. Memory — the corpus *is* the knowledge graph
 
 **DEFAULT (no MCP):** persistent knowledge lives in the project's Markdown corpus, not in a

@@ -20,7 +20,7 @@ After every significant step — especially the **semantic** events a git hook c
 - `alpha-test-designed` (Step 4) · `spec-review-complete` / `devils-advocate-attack-complete` (Step 5)
 - `spec-revised` / `alpha-test-sealed` (Step 6) · `implementation-started` / `implementation-complete` / `code-review-complete` (Step 7)
 - `alpha-test-executed` / `tests-passed` / `tests-failed` (Step 8) · `validation-complete` (Step 9) · `task-closed` (Step 10)
-- `blocker-hit` / `blocker-resolved` · `decision` · `paused` (no fixed step)
+- `blocker-hit` / `blocker-resolved` · `decision` · `paused` · `handshake-out` / `handshake-in` (no fixed step)
 
 `committed` lines are written **automatically** by the `.husky/post-commit` hook (`scripts/log-commit-activity.mjs`) — do **not** hand-log routine commits. Use `/log-tracker` (not this skill) when the step is also worth a tracker comment.
 
@@ -86,11 +86,15 @@ Canonical, **closed list** mapped to the 10-step lifecycle. New tags require a l
 | `blocker-resolved` | Blocker cleared — work resumed | `null` |
 | `decision` | A decision of record or a deviation from plan | `null` |
 | `paused` | Work paused (end of day / transitory close) | `null` |
+| `handshake-out` | Machine transfer packed by `/handshake out` (summary carries the machine hint and, on git-remote transport, the wip-commit hash + handoff doc path) | `null` |
+| `handshake-in` | Machine transfer unpacked by `/handshake in` (summary carries the source machine, snapshot regenerated yes/no, and the environment-verification result) | `null` |
 | `council-convened` | A `/council` deliberation was convened | `null` |
 
 `committed` is `step: 7` for **manual** invocation; the `post-commit` hook writes `step: null` because a commit's lifecycle step is not determinable in-hook (a commit can happen at Step 7 implementation or Step 10 close).
 
 `kb-curated` is `step: 10` when part of a Full or Research close and `step: null` at a transitory boundary (same rationale as `paused` — no lifecycle step completed). The **PM invokes** the log write — the activity log is outside the kb-curator's write allow-list — but the line carries `agent: "kb-curator"` (authored-by semantics). Log it only **after** every FAILED entry in the curator's filing plan is resolved (fixed or `git restore`d), and only when ≥1 KB file survived that resolution; a zero-write (or fully-restored) curation is recorded in the close report, not the log. `artifacts` = only the surviving KB files that ride the close commit.
+
+`handshake-out` / `handshake-in` are `step: null` (same rationale as `paused` — a machine boundary completes no lifecycle step), `agent: "pm"`. On git-remote transport, `handshake-out` is appended **before** the final handshake commit so the line rides the push; `handshake-in` is appended on the arriving machine. One known residue: the final handshake commit's own post-commit `committed` hook line never rides any push — `/handshake in` restores it on arrival (`git restore docs/activity_log.jsonl`; the line is reproducible from `git log`, no audit loss). The arriving machine's `.claude/log_session` may be absent or stale — §C self-heals with a fresh 8-char id, which is correct: a new machine is a new session (`/handshake in` regenerates the file deliberately).
 
 > Norse-alias cross-reference (legacy instances): `code-review-complete` was `heimdall-review-complete`; `devils-advocate-attack-complete` was `loki-attack-complete`. Use the role-descriptive tags above going forward.
 

@@ -131,7 +131,8 @@ a separate `data-reviewer` runs the frozen test while the DA only designs it —
 | 9 | `validation-complete` | PM, after the human's verdict |
 | 10 | `task-closed` | `/close-task` |
 
-Off-lifecycle events (`step: null`): `blocker-hit`, `blocker-resolved`, `decision`, `paused`.
+Off-lifecycle events (`step: null`): `blocker-hit`, `blocker-resolved`, `decision`, `paused`,
+`handshake-out`, `handshake-in`, `council-convened`.
 
 ---
 
@@ -600,6 +601,13 @@ leaving it in watch items.
 
 Execute in order before starting any work.
 
+0. **Two-machine check.** Resolve the transport from `.claude/settings.json → handshake.transport`; when it is
+   `auto` or absent: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (case-insensitive) →
+   synced-folder, else git-remote. Synced-folder: if `.claude/handshake.json` was last written by the OTHER
+   machine with `direction: "out"` → STOP and run `/handshake in` first. Git-remote: `git fetch`; if the
+   remote task branch is **ahead** → STOP and run `/handshake in` first. (A handoff doc newer than the local
+   snapshot is only a secondary signal — it also fires on the machine that just packed; require a clean tree
+   AND a handoff produced by the other machine before acting on it.) Resuming without unpacking forks the state.
 1. Read `CLAUDE.md` — governance, hard rules, protected files, model policy, tracker identity, stack standards.
 2. Read `docs/strategy.md` — goal/vision, decision log, open decisions, risk register.
 3. Read `docs/architecture.md` — live system architecture (**if it exists**; skip until then).

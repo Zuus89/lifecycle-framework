@@ -26,8 +26,22 @@ tags: []
 
 ## What to Commit
 - Working code only — every commit should leave the project in a runnable state.
+  (Sole exception: the `/handshake` WIP transport commit — see the section below.)
 - One logical change per commit — don't mix a feature with an unrelated refactor.
 - Keep tightly-coupled changes (e.g. an interface and its callers) in the same commit.
+
+## Handshake WIP transport — the ONE sanctioned exception (git-remote transport only)
+
+- `wip(<TICKET>):` commits are allowed ONLY as the `/handshake out` machine-transfer transport on a task
+  branch — e.g. `wip({{TRACKER_KEY}}-123): handshake 2026-07-30 notebook->tower`.
+- A `wip:` commit MAY leave the project non-runnable — an explicit carve-out from "Working code only"
+  above. It exists to move an in-progress working tree between the user's machines over git, nothing else.
+- It is cleaned up by the squash-merge when the PR lands — **never** by history rewrite (amend / rebase are
+  prohibited by this rule; force-push, `reset --hard`, and `clean -f` are additionally blocked by the
+  destructive-command guard).
+- Never `wip:` on the default branch; never as a routine checkpoint on one machine.
+- Projects on the `synced-folder` handshake transport (repo inside a cloud-synced folder — OneDrive, Dropbox,
+  Google Drive) do not need WIP commits — the sync client carries the working tree; `/handshake` handles that mode.
 
 ## What NOT to Commit
 - `.env` files or anything containing secrets, tokens, or credentials.

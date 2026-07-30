@@ -73,6 +73,7 @@ export const TYPE_ENUM = new Set([
   'skill',
   'archive',
   'audit',
+  'handoff',
 ]);
 
 export const STATUS_ENUM = new Set([

@@ -48,7 +48,7 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
   (on by default — the kb-curator folds every session's durable knowledge into `docs/knowledge_base/` at
   `/close-task`), `data-reviewer` / `scout` / `dead-code-cleanup` (optional).
 - **Skills** — `/lifecycle-init`, `/close-task`, `/log-activity`, `/log-tracker`, `/council`, `/new-doc`,
-  `/audit-corpus`.
+  `/audit-corpus`, `/handshake` (two-machine work transfer — synced-folder or git-remote transport).
 - **Hook** — a destructive-command guard. **MCP** — none by default (empty `.mcp.json`; the corpus — chronicle +
   snapshot + knowledge base + INDEX — is the knowledge graph; `basic-memory` opt-in at init).
 
@@ -56,8 +56,8 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
 
 `CLAUDE.md`; a `docs/` tree (`strategy.md`*, `architecture.md`*, `project_chronicle.md`†, `context_snapshot.md`,
 `activity_log.jsonl`†, `INDEX.md`+`index.json`, `_templates/`, `claude_tasks/{spec, alpha_tests/, reviews/, reports/,
-council/}`, `audits/`, `knowledge_base/`); `TODO.md`*; `.claude/` (`settings.json`, `.local/secrets.env`, `rules/*`,
-`log_session`); `.husky/`; `.github/workflows/`; the corpus-script engine. *(\* protected, † append-only.)*
+council/, handoffs/, archive/}`, `audits/`, `knowledge_base/`); `TODO.md`*; `.claude/` (`settings.json`, `.local/secrets.env`,
+`rules/*`, `log_session`); `.husky/`; `.github/workflows/`; the corpus-script engine. *(\* protected, † append-only.)*
 
 ---
 

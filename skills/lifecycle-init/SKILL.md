@@ -48,6 +48,8 @@ than ask blindly**.
    `searchJiraIssuesUsingJql`, `getVisibleJiraProjects`). Record "Linear connected", "Jira connected", "both", or "none".
 7. **Databricks config** (for C.3): check for `~/.databrickscfg` and list the profile names it defines (e.g.
    `dev`, `qa`, `prod`, `global_data_and_analytics`). Record them; do not read secrets.
+8. **Cloud-synced folder** (for C.4): note whether the CWD path lies inside a sync client's folder (path contains
+   `OneDrive`, `Dropbox`, or `Google Drive`). Record the finding — it drives the `/handshake` transport default.
 
 Then run the interview in **exactly this order**: A → B → C. Echo each captured value before moving on.
 
@@ -131,9 +133,10 @@ precedence **local > project > user** — the winning entry replaces the whole d
      `.mcp.json` so every teammate gets it. Tokens go in per-user env vars, never in the file. Note the approval
      flow: project-scoped servers need user approval (`enabledMcpjsonServers` / trust dialog).
    - Single-identity machine, personal tooling used everywhere → **`user`** is fine.
-3. Record → `{{MCP_SCOPE}}`. Apply it to **every** server this init wires (tracker in C.2, `github`, stack MCPs,
-   `basic-memory` stays project-scoped by design — §6.4). Note the choice in `mcp-usage`/`CLAUDE.md` so future
-   sessions know where servers live.
+3. Record → `{{MCP_SCOPE}}` **and write it into committed config — `.claude/settings.json` → `"mcp": { "scope":
+   … }`** — so `/handshake in` can re-verify the servers at the right scope on the user's other machine. Apply it
+   to **every** server this init wires (tracker in C.2, `github`, stack MCPs, `basic-memory` stays project-scoped
+   by design — §6.4). Note the choice in `mcp-usage`/`CLAUDE.md` so future sessions know where servers live.
 4. **Never assume `user`/global.** If the user later needs the same server elsewhere, re-running init there (or
    `claude mcp add` in that project) is the supported path.
 
@@ -169,6 +172,9 @@ Use the pre-flight git context.
     to use. If `{{GIT_HOST}} = github` and it is **not** the active account, switch to it **for this repo**:
     `gh auth switch --user <account>` then `gh auth setup-git`. **Record the previously-active account and restore it
     in §8** — never leave the user's global `gh` state changed after init.
+  - **Record the selected login as `{{GIT_ACCOUNT}}`** → committed `settings.json` `git.account` (an identity, never
+    a credential — the token stays in the credential helper). `/handshake in` compares `gh auth status` on the
+    user's other machine against this value. If `{{GIT_HOST}}` is not github or no account applies, record `""`.
   - **Several candidates / ambiguous:** show the accounts and ask which to use for this remote (default: the one
     matching the owner).
   - **No account can reach the remote:** the user is authenticated but none can push here — say so and offer
@@ -233,8 +239,22 @@ Ask: **"Connect this project to Databricks?"** (default **yes** if `{{STACK}} = 
    - Note in `CLAUDE.md` (data stack): use `databricks-sql-connector` for local SQL; never hardcode catalogs/
      warehouse ids/workspace URLs; pick the env profile per task.
 
-After C, **echo a full summary** (all vars + roster + SoD mode + memory backend + the three connections) and get a single
-confirmation before writing anything.
+### C.4 — Handshake transport (two-machine work transfer)
+
+From pre-flight item 8, report whether the repo lies inside a cloud-synced folder, then confirm
+`{{HANDSHAKE_TRANSPORT}}` (`auto | synced-folder | git-remote`, default **`auto`**):
+
+- **`auto`** (default) — `/handshake` decides at runtime: repo path inside a sync client's folder →
+  `synced-folder`; else `git-remote`.
+- **`synced-folder`** — the sync client (e.g. OneDrive) carries the working tree, the gitignored snapshot, and
+  `.git/` itself between the user's machines; `/handshake` verifies sync completion, scans for conflict copies,
+  and checks git integrity. **Warn once here:** `.git/` inside a synced folder on two machines carries a real
+  corruption risk (objects synced mid-write, placeholder hydration, conflict copies on simultaneous use) —
+  the handshake ritual mitigates it, it cannot eliminate it.
+- **`git-remote`** — per-machine clones; `/handshake out` packs (WIP transport commit + handoff doc) and pushes.
+
+After C, **echo a full summary** (all vars + roster + SoD mode + memory backend + the three connections +
+handshake transport) and get a single confirmation before writing anything.
 
 ---
 
@@ -249,6 +269,9 @@ Resolve all before substitution; use **exactly** these names:
 | `{{MODEL_PM}}` (=`session (Opus via /model)`) / `{{MODEL_DE}}` / `{{MODEL_DA}}` / `{{MODEL_CODE_REVIEWER}}` / `{{MODEL_DEVILS_ADVOCATE}}` | A.5 |
 | `{{TRACKER}}` / `{{TRACKER_ORG}}` / `{{TRACKER_TEAM}}` / `{{TRACKER_PROJECT}}` / `{{TRACKER_KEY}}` / `{{TRACKER_CLOUD_ID}}` | C.2 |
 | `{{GITHUB_REPO}}` / `{{GIT_HOST}}` / `{{GIT_BRANCH}}` / `{{GIT_DEFAULT_BRANCH}}` | C.1 |
+| `{{GIT_ACCOUNT}}` | C.1 — the gh login selected for this remote (`""` when not github / not applicable) |
+| `{{MCP_SCOPE}}` (`local\|project\|user`) | C.0 |
+| `{{HANDSHAKE_TRANSPORT}}` (`auto\|synced-folder\|git-remote`, default `auto`) | C.4 |
 | `{{DATABRICKS}}` (`on\|off`) / `{{DATABRICKS_ENVS}}` (comma list) / `{{DATABRICKS_PROFILE}}` / `{{DATABRICKS_DEFAULT_HOST}}` | C.3 |
 | `{{DATABRICKS_HOSTS_JSON}}` / `{{DATABRICKS_WAREHOUSES_JSON}}` | C.3 — JSON objects keyed by env (e.g. `{"dev":"...","prod":"..."}`); resolve to `{}` when `{{DATABRICKS}}=off` |
 | `{{MEMORY_BACKEND}}` (`corpus\|basic-memory`, default `corpus`) | A.7 |
@@ -271,7 +294,7 @@ For every `*.template` under `${CLAUDE_PLUGIN_ROOT}/data/templates/`: read it, s
 the output path (same relative path under project root, `.template` stripped), create parent dirs, apply the §7
 overwrite policy, write. Expected map: `CLAUDE.md` (stack-variant), `TODO.md` (protected), `.gitignore`, `.mcp.json` (default: empty `{"mcpServers":{}}`; `basic-memory` backend → declares that server per §6.4);
 `docs/{strategy.md,architecture.md}` (protected), `project_chronicle.md` (append-only, init entry `{{TODAY}}`),
-`context_snapshot.md`, empty `activity_log.jsonl`, `_templates/*`, `claude_tasks/{alpha_tests,reviews,reports,council,archive}`,
+`context_snapshot.md`, empty `activity_log.jsonl`, `_templates/*`, `claude_tasks/{alpha_tests,reviews,reports,council,archive,handoffs}`,
 `audits/`, `knowledge_base/`, INDEX (autogen in §6); `.claude/{settings.json (committed, has Agent Teams env +
 connections), .local/secrets.env (gitignored), rules/*, log_session}`; `.husky/{pre-commit,post-commit,pre-push}`;
 `.github/workflows/lint-frontmatter.yml` (+ stack optionals, **alongside** any pre-existing CI); `scripts/*.mjs` +
@@ -385,8 +408,10 @@ at scaffold time:
 ## 8. Final summary (in the user's language)
 
 Report: project identity; model policy + enabled roster + `separation_of_duties_mode`; the **three connections** —
-Git (repo/branch/remote, identity, **the git account selected for this remote**), tracker (type + connection identity;
-token in `.claude/.local/secrets.env`, never shown), Databricks (envs/profile/warehouses, or "not connected"); every
+Git (repo/branch/remote, identity, **the git account selected for this remote** — recorded in `git.account`), tracker
+(type + connection identity; token in `.claude/.local/secrets.env`, never shown), Databricks
+(envs/profile/warehouses, or "not connected"); the MCP scope (recorded in `mcp.scope`) and the handshake transport
+(recorded in `handshake.transport`); every
 file written, every file **preserved**, any missing template; toolchain status (git, npm, husky, Agent Teams flag,
 INDEX); memory backend (`corpus` = no MCP, the corpus is the knowledge graph; or `basic-memory` enabled per §6.4);
 MCP verification (`github`, tracker, Databricks, + `basic-memory` if enabled). **If you switched the active `gh` account in C.1,

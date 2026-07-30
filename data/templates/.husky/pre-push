@@ -14,9 +14,7 @@ if ! git diff --quiet docs/INDEX.md docs/index.json; then
   echo "ERROR: INDEX drift — docs/INDEX.md or docs/index.json is out of sync with source."
   echo ""
   echo "Fix:  npm run build:index && git add docs/INDEX.md docs/index.json"
-  echo "      git commit --amend --no-edit  # or new commit"
+  echo "      git commit -m \"docs(index): rebuild INDEX\"   # NEW commit — never --amend pushed history"
   echo "      git push"
-  echo ""
-  echo "Skip (emergencies only):  git push --no-verify"
   exit 1
 fi
