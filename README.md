@@ -13,7 +13,7 @@ scaffolded.
 ## Install
 
 ```
-/plugin marketplace add celtonchamberlain/lifecycle-framework
+/plugin marketplace add Zuus89/lifecycle-framework
 /plugin install lifecycle-framework@lifecycle-framework
 ```
 
