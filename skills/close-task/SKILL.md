@@ -156,7 +156,9 @@ The frontmatter keeps `type: spec` + `status: done` (an explicit declaration win
 Read `tracker` from `.claude/settings.json`. Run exactly one branch.
 
 #### If `tracker = linear`
-Use the Linear MCP (`mcp__*__Linear__*`). The workspace/team/project identity is in `settings.json` /
+Use the Linear MCP wired at init (server `linear` from `settings.json → mcp.servers`; tools `mcp__linear__*` —
+tool names vary by server version: discover the exact ones from the session tool list before calling; the steps
+below use indicative names). The workspace/team/project identity is in `settings.json` /
 `corpus.config.mjs` — read it, do not hardcode.
 
 1. **Append Completion Notes** to the issue description (append, never replace):
@@ -176,7 +178,8 @@ Use the Linear MCP (`mcp__*__Linear__*`). The workspace/team/project identity is
 4. **Parent has all sub-issues Done** → move the parent to Done too.
 
 #### If `tracker = jira`
-Use the Atlassian MCP (`mcp__*__Atlassian__*`). Read the `cloud id` / site and project key from `settings.json` /
+Use the Atlassian MCP wired at init (server `atlassian` from `settings.json → mcp.servers`; tools
+`mcp__atlassian__*`). Read the `cloud id` / site and project key from `settings.json` /
 `corpus.config.mjs`. Resolve the issue key from the spec's tracker id.
 
 1. **Append Completion Notes** to the issue description via `editJiraIssue` (fetch the current description with

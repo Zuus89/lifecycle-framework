@@ -43,9 +43,13 @@ than ask blindly**.
    `.github/workflows/` already exists (pre-existing CI). **Also enumerate the connected git accounts** — the user
    may have several (work + personal): `gh auth status` lists every authenticated GitHub account and which is
    **active**; also note `git config --get credential.helper`. Record all accounts + the active one.
-6. **Connected tracker MCP** (for C.2): note which tracker MCP tools are available in this session — **Linear**
-   (e.g. `list_issues`, `save_issue`, `list_projects`) or **Atlassian/Jira** (e.g. `getJiraIssue`,
-   `searchJiraIssuesUsingJql`, `getVisibleJiraProjects`). Record "Linear connected", "Jira connected", "both", or "none".
+6. **Connected tracker MCP** (for C.2): run `claude mcp list` from the repo root and record which tracker
+   servers exist and **at which scope** (`linear` / `atlassian` at local, project, or user). Session-visible
+   tools prefixed `mcp__claude_ai_*` are **account-level claude.ai connectors — they do NOT count** as a wired
+   tracker (they are global to the account, exactly what this framework avoids depending on). Record the server
+   name + scope, or "none". Also note (informationally) which tracker the connectors suggest the user works with.
+   In **update mode**, additionally read the existing `.claude/settings.json → mcp` block (scope + servers) —
+   C.5 seeds from it.
 7. **Databricks config** (for C.3): check for `~/.databrickscfg` and list the profile names it defines (e.g.
    `dev`, `qa`, `prod`, `global_data_and_analytics`). Record them; do not read secrets.
 8. **Cloud-synced folder** (for C.4): note whether the CWD path lies inside a sync client's folder (path contains
@@ -112,7 +116,7 @@ Never invent knowledge-base content; only copy what the user supplies.
 This is where the project is wired to the outside world. For **each** connection: **report what you detected in
 pre-flight, ask the user to confirm or change it, and only then guide creation if nothing exists.**
 
-### C.0 — MCP scope (ask ONCE, applies to every MCP server this init wires)
+### C.0 — MCP scope (set ONCE — default `local`; applies to every MCP server this init wires)
 
 Claude Code stores MCP servers at three usable scopes (plus IT-managed `managed-mcp.json`), with documented
 precedence **local > project > user** — the winning entry replaces the whole definition, fields are never merged
@@ -126,17 +130,18 @@ precedence **local > project > user** — the winning entry replaces the whole d
 
 1. **Detect multi-identity signals** from pre-flight: ≥2 accounts in `gh auth status`, and/or multiple
    tracker/Atlassian identities already configured across `~/.claude.json` projects.
-2. **Ask** (one question): **"Where do I configure this project's MCP servers — `local`, `project`, or `user`?"**
-   - Multi-identity machine (consultant working for several orgs/clients) → recommend **`local`**: servers (and the
-     context they leak) stay confined to this project; nothing bleeds into other clients' sessions.
-   - Team repo + server definable without secrets (env-var indirection) → recommend **`project`**: commit
-     `.mcp.json` so every teammate gets it. Tokens go in per-user env vars, never in the file. Note the approval
-     flow: project-scoped servers need user approval (`enabledMcpjsonServers` / trust dialog).
-   - Single-identity machine, personal tooling used everywhere → **`user`** is fine.
+2. **Default: `local` — do not ask, announce it.** The framework wires every project MCP at **`local` scope**:
+   the server lives in THIS project's entry in `~/.claude.json`, confined to this repo — nothing bleeds into
+   other projects, other clients' sessions, or the machine's global config, and nothing depends on
+   account-level claude.ai connectors. Override only if the user **explicitly** requests it:
+   - `project` — team repo where every teammate should inherit the same servers: committed `.mcp.json`, **no
+     secrets**, `${VAR}` indirection; approval flow via `enabledMcpjsonServers` / trust dialog.
+   - `user` — single-identity machine, personal tooling used everywhere. **Never assume it.**
 3. Record → `{{MCP_SCOPE}}` **and write it into committed config — `.claude/settings.json` → `"mcp": { "scope":
    … }`** — so `/handshake in` can re-verify the servers at the right scope on the user's other machine. Apply it
-   to **every** server this init wires (tracker in C.2, `github`, stack MCPs, `basic-memory` stays project-scoped
-   by design — §6.4). Note the choice in `mcp-usage`/`CLAUDE.md` so future sessions know where servers live.
+   to **every** server this init wires (tracker in C.2, the C.5 stack catalog, `basic-memory` stays
+   project-scoped by design — §6.4). Note the choice in `mcp-usage`/`CLAUDE.md` so future sessions know where
+   servers live.
 4. **Never assume `user`/global.** If the user later needs the same server elsewhere, re-running init there (or
    `claude mcp add` in that project) is the supported path.
 
@@ -193,13 +198,16 @@ Use the pre-flight git context.
 Use the pre-flight detection of the connected tracker MCP.
 
 1. **Confirm or choose the tracker:**
-   - If exactly one is connected (Linear or Jira): **"I detected <X> connected. Use <X> for this project?"** Confirm
-     or switch. → `{{TRACKER}}`.
-   - If both are connected: ask which to use.
-   - If none: ask `linear | jira | none`, and wire the chosen tracker's MCP **at `{{MCP_SCOPE}}` (C.0)** — verified
-     in §6. Offer the exact command for the scope: `claude mcp add --scope local|user <name> …`, or for `project`
-     scope write the server into `.mcp.json` with `${VAR}` env-var indirection (token in the user's env, never in
-     the file). `none` → local `TODO.md` only; skip the rest of C.2.
+   - If exactly one is wired (pre-flight found `linear` or `atlassian` via `claude mcp list`): **"I detected <X>.
+     Use <X> for this project?"** Confirm or switch. → `{{TRACKER}}`.
+   - If both are wired: ask which to use. If none is wired: ask `linear | jira | none`.
+   - **Wire-at-scope is mandatory whenever `{{TRACKER}} ≠ none`:** if `claude mcp list` (from the repo root) does
+     NOT show the tracker server at `{{MCP_SCOPE}}`, run the **C.5 catalog** command now — even if tracker tools
+     are visible in-session (those may be account-level claude.ai connectors or another scope, and §6's
+     verification would fail against them). OAuth completes via `/mcp`, no token in any file; for `project`
+     scope write the server into `.mcp.json` instead (no secrets). The tracker's server name is **always**
+     included in `{{MCP_SERVERS_JSON}}` when `{{TRACKER}} ≠ none`. `none` → local `TODO.md` only; skip the rest
+     of C.2.
 2. **Find what this repo connects to** (scope). Ask: **"Is this repo tied to a single ticket, or to a larger
    project/epic?"** Then resolve it concretely using the tracker MCP so you store real ids, not guesses:
    - **Linear:** `{{TRACKER_ORG}}` (workspace) + `{{TRACKER_TEAM}}` (team) + the **project or initiative** →
@@ -210,9 +218,11 @@ Use the pre-flight detection of the connected tracker MCP.
      the **epic** the repo lives under, if any → record as `start_epic`. `{{TRACKER_TEAM}}` empty unless team-managed.
    - Either tracker, optionally a specific **start ticket** → `start_ticket` (used to name the working branch in C.1
      and seed `TODO.md` / `context_snapshot.md`; not a template var). Validate it exists via the MCP.
-3. **Token.** Ask for the tracker API token (Jira: also the user email if it's a Basic-auth token). Write it into the
-   **gitignored** `.claude/.local/secrets.env` (`LINEAR_API_KEY`, or `JIRA_API_TOKEN` + `JIRA_EMAIL`) — never into a
-   committed file. The connection **identity** goes into committed `settings.json` + `corpus.config.mjs`; the token does not.
+3. **Token — only if a script needs the REST API.** The tracker MCP itself needs **no token** (OAuth via
+   `/mcp`, per machine). Ask for a tracker API token ONLY if the project will call the tracker's REST API
+   directly from scripts (outside the MCP); then write it into the **gitignored** `.claude/.local/secrets.env`
+   (`LINEAR_API_KEY`, or `JIRA_API_TOKEN` + `JIRA_EMAIL`) — never into a committed file. The connection
+   **identity** goes into committed `settings.json` + `corpus.config.mjs`; tokens never do.
 
 ### C.3 — Databricks (data stack)
 
@@ -253,8 +263,44 @@ From pre-flight item 8, report whether the repo lies inside a cloud-synced folde
   the handshake ritual mitigates it, it cannot eliminate it.
 - **`git-remote`** — per-machine clones; `/handshake out` packs (WIP transport commit + handoff doc) and pushes.
 
+### C.5 — Project MCPs (the stack catalog, wired at `{{MCP_SCOPE}}`)
+
+Beyond the tracker (C.2), wire the MCPs this project actually needs — **detect before asking, install only what
+is needed**, everything at the C.0 scope (default `local`), with every `claude mcp add` run **from the repo
+root** (local scope binds to the CWD's project entry). All catalog servers are the providers' **official remote
+endpoints with OAuth** — no token lands in any file; the user completes each auth via `/mcp` in-session, **per
+machine** (local scope does not travel — `/handshake in` re-offers these exact commands on the other machine).
+
+| Server | When | Command (official remote endpoint, OAuth) |
+| --- | --- | --- |
+| Tracker — Linear | `{{TRACKER}} = linear` (C.2) | `claude mcp add --transport http --scope local linear https://mcp.linear.app/mcp` |
+| Tracker — Atlassian (Jira) | `{{TRACKER}} = jira` (C.2) | `claude mcp add --transport http --scope local atlassian https://mcp.atlassian.com/v1/mcp/authv2` |
+| Slack | ask: "Does this project read/notify Slack?" — default **no** | `claude mcp add --transport http --scope local slack https://mcp.slack.com/mcp` (a workspace admin must have approved MCP access) |
+| Vercel | only `{{STACK}} = web` AND the repo deploys on Vercel — detect `vercel.json` / `.vercel/`; if neither, don't even ask | `claude mcp add --transport http --scope local vercel https://mcp.vercel.com` |
+| Supabase | the project's database is Supabase — detect `supabase/` dir, else confirm | `claude mcp add --transport http --scope local supabase https://mcp.supabase.com/mcp` |
+| Neon | the project's database is Neon (mutually exclusive with Supabase — one DB backend per project) | `claude mcp add --transport http --scope local neon https://mcp.neon.tech/mcp` |
+
+(For `{{MCP_SCOPE}} = project`, the same servers go into the committed `.mcp.json` instead; for `user`, swap the
+`--scope` flag. The commands above are the default-`local` form.)
+
+**Databricks is NOT an MCP.** Its connection is CLI/SDK-based via the profiles in `~/.databrickscfg` (C.3:
+`databricks-sql-connector`, OAuth via `w.config.authenticate()`). Do not wire a Databricks MCP server.
+
+Record the enabled set as a JSON array of the configured server names (e.g. `["linear", "slack", "supabase"]`) →
+`{{MCP_SERVERS_JSON}}`, written to committed `.claude/settings.json` → `"mcp": { "servers": … }` — this is the
+list §6 verifies here and `/handshake in` verifies on the user's other machine (`[]` when `tracker = none` and
+no stack MCP applies). If an add command fails or an endpoint has moved, check the provider's MCP docs rather
+than guessing — and record the correction in `mcp-usage.md` §0 so the repo carries the working command.
+
+**Update mode (re-run on an already-scaffolded project): merge, never silently overwrite.** Seed the interview
+from the existing `settings.json → mcp` block + the pre-flight `claude mcp list`: present explicit adds/drops
+instead of re-asking from defaults (Slack's "default no" becomes "default: the previous answer"). On a confirmed
+drop, offer the matching `claude mcp remove --scope {{MCP_SCOPE}} <name>` so the record and `~/.claude.json`
+move together — never drop a server from `mcp.servers` while leaving it configured (orphan drift), and never
+remove a configured server without the user confirming the drop.
+
 After C, **echo a full summary** (all vars + roster + SoD mode + memory backend + the three connections +
-handshake transport) and get a single confirmation before writing anything.
+handshake transport + the project MCP set) and get a single confirmation before writing anything.
 
 ---
 
@@ -272,6 +318,7 @@ Resolve all before substitution; use **exactly** these names:
 | `{{GIT_ACCOUNT}}` | C.1 — the gh login selected for this remote (`""` when not github / not applicable) |
 | `{{MCP_SCOPE}}` (`local\|project\|user`) | C.0 |
 | `{{HANDSHAKE_TRANSPORT}}` (`auto\|synced-folder\|git-remote`, default `auto`) | C.4 |
+| `{{MCP_SERVERS_JSON}}` | C.2 + C.5 — bare JSON array of configured server names (unquoted; `[]` when none) |
 | `{{DATABRICKS}}` (`on\|off`) / `{{DATABRICKS_ENVS}}` (comma list) / `{{DATABRICKS_PROFILE}}` / `{{DATABRICKS_DEFAULT_HOST}}` | C.3 |
 | `{{DATABRICKS_HOSTS_JSON}}` / `{{DATABRICKS_WAREHOUSES_JSON}}` | C.3 — JSON objects keyed by env (e.g. `{"dev":"...","prod":"..."}`); resolve to `{}` when `{{DATABRICKS}}=off` |
 | `{{MEMORY_BACKEND}}` (`corpus\|basic-memory`, default `corpus`) | A.7 |
@@ -279,9 +326,11 @@ Resolve all before substitution; use **exactly** these names:
 | `{{SOD_MODE}}` (`collapsed\|strict`) | A.6 — `strict` iff `data-reviewer` is ON, else `collapsed` |
 | `{{TODAY}}` | `date +%F` |
 
-(The default backend writes an **empty** `.mcp.json` (`{"mcpServers":{}}`) — the corpus is the knowledge graph, no
-memory MCP. Only when `{{MEMORY_BACKEND}} = basic-memory` does `.mcp.json` declare a server (§6.4); its
-`BASIC_MEMORY_HOME` is set literally via `${CLAUDE_PROJECT_DIR}`, so it is per-project without a slug.)
+(`.mcp.json` expected contents by configuration: `{{MCP_SCOPE}} = local|user` + `corpus` backend → **empty**
+(`{"mcpServers":{}}`) — the corpus is the knowledge graph, no memory MCP, and the wired servers live in
+`~/.claude.json`, not here. `{{MCP_SCOPE}} = project` → it declares the tracker + C.5 catalog servers (official
+remote endpoints, no secrets). `{{MEMORY_BACKEND}} = basic-memory` → additionally the `basic-memory` entry
+(§6.4), whose `BASIC_MEMORY_HOME` is set literally via `${CLAUDE_PROJECT_DIR}`, per-project without a slug.)
 
 Empty vars (e.g. tracker fields when `none`, Databricks fields when `off`) substitute to the empty string; ensure the
 surrounding template line still reads correctly.
@@ -292,7 +341,7 @@ surrounding template line still reads correctly.
 
 For every `*.template` under `${CLAUDE_PLUGIN_ROOT}/data/templates/`: read it, substitute every `{{VAR}}`, compute
 the output path (same relative path under project root, `.template` stripped), create parent dirs, apply the §7
-overwrite policy, write. Expected map: `CLAUDE.md` (stack-variant), `TODO.md` (protected), `.gitignore`, `.mcp.json` (default: empty `{"mcpServers":{}}`; `basic-memory` backend → declares that server per §6.4);
+overwrite policy, write. Expected map: `CLAUDE.md` (stack-variant), `TODO.md` (protected), `.gitignore`, `.mcp.json` (expected contents per the §1 note — empty by default; project scope → the wired servers, **merge with, never overwrite, servers already written by `claude mcp add --scope project`**; basic-memory per §6.4);
 `docs/{strategy.md,architecture.md}` (protected), `project_chronicle.md` (append-only, init entry `{{TODAY}}`),
 `context_snapshot.md`, empty `activity_log.jsonl`, `_templates/*`, `claude_tasks/{alpha_tests,reviews,reports,council,archive,handoffs}`,
 `audits/`, `knowledge_base/`, INDEX (autogen in §6); `.claude/{settings.json (committed, has Agent Teams env +
@@ -305,7 +354,8 @@ resolve there). If a template is absent, report it — don't fabricate.
 
 ## 3–4. Where connection config + secrets go
 
-- **`.claude/.local/secrets.env`** (gitignored): tracker token(s), `PYTHONIOENCODING=utf-8` (if Databricks), and
+- **`.claude/.local/secrets.env`** (gitignored): `PYTHONIOENCODING=utf-8` (if Databricks), tracker REST token(s)
+  **only if C.2.3's script-needs-the-API condition fired** (the tracker MCP is OAuth — no token), and
   `GITHUB_TOKEN` **only if a script/MCP needs the GitHub API** (fetched from the selected account via
   `gh auth token --user <account>`) — git push itself uses the account's credential helper, not this.
 - **Memory backend:** the default (`{{MEMORY_BACKEND}} = corpus`) has **no memory MCP** — the markdown corpus
@@ -349,11 +399,14 @@ From the project root (print the exact command for the user if a step is blocked
 3. **Verify connections:**
    - **Git:** remote reachable (`git ls-remote` if a remote is set), on the intended branch, identity set; `gh auth
      status` if GitHub.
-   - **MCP:** with the default `corpus` backend there is **no memory MCP** to verify — confirm `.mcp.json` is empty
-     (`{"mcpServers":{}}`) and that the corpus (chronicle + snapshot + knowledge base + INDEX) is in place; that
-     *is* the knowledge graph. If `{{MEMORY_BACKEND}} = basic-memory`, verify it per §6.4. Then verify `github` and the chosen tracker
-     MCP (Linear / Atlassian) **at `{{MCP_SCOPE}}` (C.0)** — if absent, give the user the exact enable command for
-     that scope; flag, don't block. Two extra checks:
+   - **MCP:** confirm `.mcp.json` matches the expected contents for the recorded scope/backend (§1 note:
+     local/user + corpus → empty; project → the wired servers; basic-memory → its entry, verified per §6.4) and
+     that the corpus (chronicle + snapshot + knowledge base + INDEX) is in place; that *is* the knowledge graph.
+     Then verify **every server in `settings.json → mcp.servers`** (the tracker + the C.5 catalog) **at
+     `{{MCP_SCOPE}}` (C.0)**: run `claude mcp list` from the repo root — each must appear at the recorded scope
+     with its OAuth completed (`/mcp` shows it connected). If one is absent, give the user the exact C.5
+     command; flag, don't block. **Reverse check:** any server configured at the recorded scope but absent from
+     `mcp.servers` is an orphan — offer to add it to the record or `claude mcp remove` it. Two extra checks:
      - **Shadowing (doc-backed):** if the same server name exists at more than one scope, warn which definition wins
        (precedence `local > project > user`, whole-entry override — a stale local entry silently masks the team's
        `.mcp.json`). Offer `claude mcp remove --scope <loser>` to clean up.
@@ -409,12 +462,14 @@ at scaffold time:
 
 Report: project identity; model policy + enabled roster + `separation_of_duties_mode`; the **three connections** —
 Git (repo/branch/remote, identity, **the git account selected for this remote** — recorded in `git.account`), tracker
-(type + connection identity; token in `.claude/.local/secrets.env`, never shown), Databricks
-(envs/profile/warehouses, or "not connected"); the MCP scope (recorded in `mcp.scope`) and the handshake transport
-(recorded in `handshake.transport`); every
+(type + connection identity + MCP OAuth status; a REST token in secrets.env only if C.2.3's condition fired,
+never shown), Databricks (envs/profile/warehouses, or "not connected"); the MCP scope + the project MCP set
+(recorded in `mcp.scope` / `mcp.servers` — default scope `local`: confined to this repo, never global) and the
+handshake transport (recorded in `handshake.transport`); every
 file written, every file **preserved**, any missing template; toolchain status (git, npm, husky, Agent Teams flag,
 INDEX); memory backend (`corpus` = no MCP, the corpus is the knowledge graph; or `basic-memory` enabled per §6.4);
-MCP verification (`github`, tracker, Databricks, + `basic-memory` if enabled). **If you switched the active `gh` account in C.1,
+MCP verification (every server in `mcp.servers` at `{{MCP_SCOPE}}` per §6, + `basic-memory` if enabled;
+Databricks is verified separately via its CLI profile — it is not an MCP). **If you switched the active `gh` account in C.1,
 restore the previously-active one now** (`gh auth switch --user <prev>`) and confirm it. Next step: start a session —
 the PM reads `CLAUDE.md` + `TODO.md` + the chronicle and begins the
 lifecycle at Step 1 (Brief).

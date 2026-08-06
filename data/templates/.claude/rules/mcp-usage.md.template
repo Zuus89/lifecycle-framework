@@ -18,30 +18,58 @@ and you skip the server, explain why in the task report.
 - **memory** — DEFAULT: there is **no memory MCP**. The project's Markdown corpus *is* the
   knowledge graph (chronicle + snapshot + knowledge base + INDEX + affects-lookup). OPT-IN: a
   project may enable the `basic-memory` MCP at init — see §1.
-- **github** — recommended. User-global prerequisite (not declared by the plugin).
-- **tracker** — `{{TRACKER}}`. Recommended. User-global prerequisite. The `/log-tracker`
-  skill branches on the tracker chosen at init (Linear, or Atlassian for Jira). If
-  `{{TRACKER}}` is `none`, the project runs on the local `TODO.md` only.
-- **databricks** — `{{DATABRICKS}}`. Data-stack only. When `on`, SQL runs through the
-  `databricks-sql-connector` package (not an MCP), authenticated via the `~/.databrickscfg`
+- **tracker** — `{{TRACKER}}`. Wired by `/lifecycle-init` at the project's MCP scope (§0,
+  default `local` — confined to this repo). The `/log-tracker` skill branches on the tracker
+  chosen at init (Linear, or Atlassian for Jira). If `{{TRACKER}}` is `none`, the project runs
+  on the local `TODO.md` only.
+- **stack MCPs** — only what the project needs, per the §0 catalog (`slack`, `vercel`,
+  `supabase` or `neon`), wired at the same scope. The authoritative enabled list is
+  `settings.json → mcp.servers`.
+- **github** — optional; the `gh` CLI covers most needs. If a github MCP is used, wire it at
+  the §0 scope like everything else — never user-global by assumption.
+- **databricks** — `{{DATABRICKS}}`. Data-stack only. **Not an MCP.** When `on`, SQL runs
+  through the `databricks-sql-connector` package, authenticated via the `~/.databrickscfg`
   profile `{{DATABRICKS_PROFILE}}`. When `off`, ignore this section.
 
-Enabled servers and connection identity are declared in `.claude/settings.json`; tokens live
-in the gitignored `.claude/.local/secrets.env`.
+Enabled servers and connection identity are declared in `.claude/settings.json` (`mcp.scope`,
+`mcp.servers`); tokens live in the gitignored `.claude/.local/secrets.env` (the §0 catalog
+servers are OAuth — they need no token at all).
 
 ---
 
 ## 0. MCP scope — where this project's servers are configured
 
-Chosen ONCE at `/lifecycle-init` (C.0) and recorded in committed `.claude/settings.json` →
-`"mcp": { "scope": "..." }`. The three scopes and where they live: `local` = this project's entry in
-`~/.claude.json` · `project` = the committed `.mcp.json` · `user` = `~/.claude.json` root. Precedence
-`local > project > user`, whole-entry override.
+Set at `/lifecycle-init` (C.0) and recorded in committed `.claude/settings.json` →
+`"mcp": { "scope": "...", "servers": [...] }`. **Default and framework policy: `local`** — every server lives in
+THIS project's entry in `~/.claude.json`, confined to this repo; nothing bleeds into other projects or the
+machine's global config, and nothing depends on account-level claude.ai connectors. The three scopes:
+`local` = this project's entry in `~/.claude.json` · `project` = the committed `.mcp.json` · `user` =
+`~/.claude.json` root. Precedence `local > project > user`, whole-entry override.
+
+**This project's server catalog** (`mcp.servers` is the authoritative enabled list; all are official remote
+endpoints with OAuth — no tokens in files, auth completed via `/mcp`, per machine):
+
+| Server | Command |
+| --- | --- |
+| `linear` (tracker) | `claude mcp add --transport http --scope local linear https://mcp.linear.app/mcp` |
+| `atlassian` (tracker, Jira) | `claude mcp add --transport http --scope local atlassian https://mcp.atlassian.com/v1/mcp/authv2` |
+| `slack` | `claude mcp add --transport http --scope local slack https://mcp.slack.com/mcp` |
+| `vercel` (web stack, Vercel deploy) | `claude mcp add --transport http --scope local vercel https://mcp.vercel.com` |
+| `supabase` (DB) | `claude mcp add --transport http --scope local supabase https://mcp.supabase.com/mcp` |
+| `neon` (DB — mutually exclusive with supabase) | `claude mcp add --transport http --scope local neon https://mcp.neon.tech/mcp` |
+
+(Commands shown are the default-`local` form. If this project's recorded `mcp.scope` is `project`, the servers
+live in the committed `.mcp.json` instead of a `claude mcp add` command; for `user`, swap the `--scope` flag.)
+
+If an endpoint has moved, check the provider's MCP docs and update this table — the repo carries the working
+commands. Tool names under each server (`mcp__<name>__*`) can also change between server versions — discover
+the exact ones from the session tool list; the tool lists in §3 are indicative. **Databricks is NOT an MCP**:
+its connection is CLI/SDK-based via `~/.databrickscfg` profiles (`databricks-sql-connector`, OAuth via
+`w.config.authenticate()`) — see the Databricks section below.
 
 **Two-machine consequence:** `local` and `user` scopes DO NOT travel with the repo. On the user's other
-machine, `/handshake in` verifies the expected servers (tracker MCP, `github`, stack MCPs) exist at the
-recorded scope and, when missing, offers the exact `claude mcp add --scope <scope> <name> ...` command —
-it never adds them silently.
+machine, `/handshake in` verifies every server in `mcp.servers` exists at the recorded scope and, when missing,
+offers the exact command from the table above — it never adds them silently.
 
 **Windows hazard (local scope):** `~/.claude.json` may hold TWO entries for the same project differing
 only in drive-letter case (`c:/...` vs `C:/...`); `claude mcp add` writes only the cwd's casing. When
@@ -107,12 +135,12 @@ issues — anything that needs the remote repository's state rather than the loc
 - **Branches** — one ticket = one branch = one PR; branch off `{{GIT_DEFAULT_BRANCH}}`.
 - **PRs (Step 8 / CI review)** — open the PR against `{{GIT_DEFAULT_BRANCH}}`, read CI
   status, reference the tracker ticket in the PR body.
-- Prefer the `github` MCP over shelling out for remote operations so results integrate with
-  the session; fall back to `gh` CLI when the MCP is unavailable.
+- Use the **`gh` CLI by default** for remote operations. Only if this project explicitly wired a `github` MCP
+  (at the §0 scope, listed in `mcp.servers`) prefer it so results integrate with the session.
 
 ---
 
-## 3. tracker — {{TRACKER}} (recommended)
+## 3. tracker — {{TRACKER}} (wired at init; mandatory unless `none`)
 
 **When:** at lifecycle milestones, via `/log-tracker` (the human-readable half of the
 dual-write; the JSONL `activity_log` is the machine half). Mirror the step to the tracker
@@ -127,7 +155,7 @@ runtime and posts to the correct backend for `{{TRACKER}}`. Routine intra-step p
   comment.
 
 **If `{{TRACKER}}` = Linear:**
-- Tools: `mcp__claude_ai_Linear__*`. Workspace `{{TRACKER_ORG}}`, team `{{TRACKER_TEAM}}`,
+- Tools: `mcp__linear__*`. Workspace `{{TRACKER_ORG}}`, team `{{TRACKER_TEAM}}`,
   project/initiative `{{TRACKER_PROJECT}}`, ticket prefix `{{TRACKER_KEY}}`.
 - Status transitions: `save_issue` (move state at Step 1 / Step 10).
 - Comments: `save_comment` (milestones only).
@@ -137,7 +165,7 @@ runtime and posts to the correct backend for `{{TRACKER}}`. Routine intra-step p
   `/close-task`. When they disagree, Linear wins — fix the mirror.
 
 **If `{{TRACKER}}` = Jira (Atlassian):**
-- Tools: `mcp__claude_ai_Atlassian__*`. Cloud id `{{TRACKER_CLOUD_ID}}`, project key
+- Tools: `mcp__atlassian__*`. Cloud id `{{TRACKER_CLOUD_ID}}`, project key
   `{{TRACKER_KEY}}` (mirrored in `{{TRACKER_PROJECT}}`), team `{{TRACKER_TEAM}}`.
 - Status transitions: `getTransitionsForJiraIssue` then `transitionJiraIssue` (move state at
   Step 1 / Step 10).
@@ -180,7 +208,8 @@ in code; never record any of those in the corpus.
 Each prevents a concrete failure:
 - Skipping the **corpus memory** (chronicle/snapshot/knowledge base/INDEX) → the next session
   re-discovers what this one already learned.
-- Skipping **github** → PR/CI state drifts from the local working tree.
+- Skipping remote-state checks (`gh` CLI, or the github MCP if wired) → PR/CI state drifts from the local
+  working tree.
 - Skipping **tracker** → the plan drifts from the team's source of truth.
 - Skipping **Databricks** config discipline → secrets/ids leak into code or the wrong env is hit.
 If you skip a triggered server, say why in the task report.

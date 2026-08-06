@@ -157,7 +157,8 @@ One place per artifact type, so the folder is a corpus, not a pile.
   otherwise teammates block on prompts mid-lifecycle or the orchestration silently collapses to a single agent.
 
 ### `.claude/.local/secrets.env` (gitignored)
-- **What:** A stub for project-local secrets: tracker API token, GitHub token, per-project memory path, MCP creds.
+- **What:** A stub for optional script/REST secrets: tracker REST token (the tracker MCP itself is OAuth — no
+  token), GitHub token, non-catalog MCP creds. (No memory path — the corpus is the memory.)
 - **Why:** Keeps credentials out of git. Never committed. (Never hardcode credentials.)
 
 ### `.claude/rules/*.md`

@@ -231,8 +231,9 @@ Plugin-resident skills (installed once; triggered by slash command or the `Skill
 
 - **The tracker is the source of truth for ticket status.** `TODO.md` mirrors it as the dependency-ordered
   roadmap; agents perform **status-sync only**, via `/close-task` — never ad-hoc edits.
-- The connection identity lives here, in §12.2, and in `corpus.config.mjs`. The **API token lives only in the
-  gitignored `.claude/.local/secrets.env`** — never committed, never hardcoded.
+- The connection identity lives here, in §12.2, and in `corpus.config.mjs`. The tracker MCP needs **no token**
+  (OAuth via `/mcp`, per machine — §12.4); a REST API token exists only if a script needs the API directly, and
+  then only in the gitignored `.claude/.local/secrets.env` — never committed, never hardcoded.
 - `/log-tracker` branches on this setting (Jira via the Atlassian MCP, or Linear via the Linear MCP).
 - If `{{TRACKER}}` is `none`, there is no remote tracker: `TODO.md` is the sole task route and `/log-tracker`
   is a no-op (use `/log-activity` only).
@@ -379,9 +380,10 @@ secret-free, into `.claude/settings.json` and `corpus.config.mjs`.
   is the scope a branch + PR map back to (1 ticket = 1 branch = 1 PR, §12.1).
 - **{{TRACKER}}** is the identity: Linear (workspace + team + project/initiative) or Jira (site/cloud id +
   project key, optionally under an epic). `/log-tracker` and `/close-task` post against it via its MCP.
-- Token in `.claude/.local/secrets.env` only (`LINEAR_API_KEY`, or `JIRA_API_TOKEN` + `JIRA_EMAIL`). If
-  **{{TRACKER}}** is `none`, every field above is empty: `TODO.md` is the sole task route and `/log-tracker`
-  is a no-op.
+- The tracker MCP authenticates via OAuth (`/mcp`, per machine — §12.4): **no token needed**. A REST token
+  (`LINEAR_API_KEY`, or `JIRA_API_TOKEN` + `JIRA_EMAIL`) exists only if a script calls the API directly, and
+  then only in the gitignored `.claude/.local/secrets.env`. If **{{TRACKER}}** is `none`, every field above is
+  empty: `TODO.md` is the sole task route and `/log-tracker` is a no-op.
 
 ### 12.3 Databricks
 
@@ -414,6 +416,19 @@ Per-env identity (keyed by env; not secrets, but **config-only — never hardcod
 - **On Windows set `PYTHONIOENCODING=utf-8`** (in `.claude/.local/secrets.env`) for correct Unicode output.
 - Default everyday profile is **{{DATABRICKS_PROFILE}}**; pick the env profile per task from
   **{{DATABRICKS_ENVS}}**.
+
+### 12.4 MCP servers (project-scoped)
+
+| Setting | Value |
+|---------|-------|
+| Scope | {{MCP_SCOPE}} (default `local` — servers live in THIS project's entry in `~/.claude.json`, confined to this repo; never user-global, never account-level claude.ai connectors) |
+| Enabled servers | see `.claude/settings.json` → `mcp.servers` (authoritative list) |
+
+- The catalog and the exact `claude mcp add` commands live in **`.claude/rules/mcp-usage.md` §0** — tracker
+  (Linear or Atlassian), plus only the stack MCPs this project needs (`slack`, `vercel`, `supabase` or `neon`).
+  All are official remote OAuth endpoints — no tokens in files; auth completes via `/mcp`, **per machine**
+  (`/handshake in` re-verifies on the other machine).
+- **Databricks is NOT an MCP** — CLI/SDK via `~/.databrickscfg` profiles (§12.3).
 
 ---
 

@@ -15,7 +15,8 @@ This skill is **plugin-resident** and reads everything at runtime — never assu
 or path. Read these first, then act:
 
 - **`.claude/settings.json`** — `handshake.transport` (`auto | synced-folder | git-remote`), `git` block
-  (`repo`, `defaultBranch`, **`account`**), `mcp.scope`, `tracker`, `databricks`, `agents`.
+  (`repo`, `defaultBranch`, **`account`**), `mcp.scope` + `mcp.servers` (the per-machine verification list),
+  `tracker`, `databricks`, `agents`.
 - **`corpus.config.mjs`** — paths, ticket prefix, project slug.
 - **`CLAUDE.md`** — communication language, protected files, hard rules.
 - **`.claude/rules/git-workflow.md`** — the `wip(<TICKET>):` carve-out (git-remote transport only).
@@ -96,12 +97,12 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
 
    | Check | From | If missing/mismatched — OFFER |
    |---|---|---|
-   | MCP servers (tracker MCP, `github`, stack MCPs) present at the recorded scope | `settings.json → mcp.scope` + `mcp-usage.md` §0 | exact `claude mcp add --scope <scope> <name> ...`; on Windows local scope, check BOTH drive-letter casings in `~/.claude.json` and mirror into the missing one |
+   | every server in `settings.json → mcp.servers` present at the recorded scope (`claude mcp list` from the repo root; OAuth completed) | `settings.json → mcp.scope` + `mcp.servers`; commands in `mcp-usage.md` §0 | the exact command from the mcp-usage §0 catalog table; on Windows local scope, check BOTH drive-letter casings in `~/.claude.json` and mirror into the missing one |
    | `gh auth status` — the account matching `git.account` exists and can reach the remote | `settings.json → git.account` | `gh auth switch --user <account>` (or `gh auth login` if absent) |
    | `~/.databrickscfg` has a profile per configured env | `settings.json → databricks.envs` (skip when `databricks.enabled` ≠ on) | `databricks configure` guidance per env; never write the file yourself |
    | `node --version` ≥ 24, husky hooks present + executable | `package.json` | `npm install` (re-runs `prepare`/husky) |
    | `python --version` | only if the destructive guard's stack patterns are enabled | install pointer only |
-   | `.claude/.local/secrets.env` key PRESENCE by NAME for the configured tracker | `settings.json → tracker.type` | which key NAMES to add and where each value comes from. On this transport secrets usually synced with the folder — verify anyway (first-time machine). **Never print, echo, or log a value** |
+   | `.claude/.local/secrets.env` key PRESENCE by NAME — only for keys a project script actually consumes (REST fallbacks, `GITHUB_TOKEN`); the tracker MCP needs no key (OAuth — covered by the MCP row above) | `settings.json → tracker.type` + the secrets.env stub's own comments | which key NAMES to add and where each value comes from. On this transport secrets usually synced with the folder — verify anyway (first-time machine). **Never print, echo, or log a value** |
 
 6. **Fresh session id.** Regenerate `.claude/log_session` (new 8-char id, current branch/issue) — a machine
    boundary is a new session per `/log-activity` §C. Update the marker: `direction: "in"`, this machine, now.
@@ -235,7 +236,7 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
 | Handoff doc missing / Branch mismatch (git-remote in) | Degraded resume: reconstruct from the last commits' diff, `docs/activity_log.jsonl` tail, and `TODO.md`; say loudly the snapshot could not be regenerated from a handoff; recommend `/handshake out` next boundary |
 | No active task (research session) | Marker/handoff with `ticket: null`, `task_number: 0`, slug from the branch |
 | `tracker = none` | Skip tracker-key and tracker-MCP checks; handoff header Tracker = "local TODO.md only" |
-| Secrets missing on the arriving machine | Names-only report + which capabilities are down (tracker MCP, `/log-tracker`) until the keys exist |
+| Secrets missing on the arriving machine | Names-only report + which capabilities are down until the keys exist (script/REST consumers only — the tracker MCP and `/log-tracker` depend on `/mcp` OAuth at the recorded scope, not on secrets.env) |
 | Branch protection blocks pushing the task branch (git-remote) | Report the server's exact rejection; options: adjust protection for the task-branch namespace, or accept transfer only at PR boundaries. Never bypass |
 | Pre-push INDEX drift at push time | Run `npm run build:index`, commit the INDEX pair as a NEW commit (never `--amend`), push again. Never `--no-verify` |
 

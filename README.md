@@ -30,8 +30,10 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
 - **Git** repository, **Node 24+** with `npm` (the scaffolder runs `npm install` + `husky`).
 - **Python** on PATH (only if the destructive-command guard hook is enabled).
 - **MCP servers**: none required by default — the markdown corpus (chronicle + snapshot + knowledge base + INDEX)
-  *is* the memory; `basic-memory` is an opt-in backend at init. `github` + your tracker (Linear or Atlassian for
-  Jira) — `/lifecycle-init` verifies they are present at the scope you choose.
+  *is* the memory; `basic-memory` is an opt-in backend at init. `/lifecycle-init` wires the project's MCPs
+  **per repo at `local` scope** (never user-global): the tracker (Linear or Atlassian), plus only the stack MCPs
+  the project needs (Slack, Vercel, Supabase or Neon) — all official remote OAuth endpoints, no tokens in files.
+  Databricks connects via CLI/profiles, not MCP.
 
 ---
 
@@ -67,11 +69,18 @@ council/, handoffs/, archive/}`, `audits/`, `knowledge_base/`); `TODO.md`*; `.cl
    agent roster.
 2. **Initial documentation?** — optionally seed `docs/knowledge_base/` from docs you provide, then `/audit-corpus`.
 3. **Connections** — each detects what already exists before asking:
+   - **MCP scope** — `local` by default (announced, per repo, never user-global, never claude.ai connectors).
    - **Git** — confirm the repo / remote / working branch (1 ticket = 1 branch = 1 PR), or guide creating one.
-   - **Tracker** — detect Linear/Jira, confirm or choose, then connect to the project/epic/ticket this repo lives under.
-   - **Databricks** (data stack) — detect `~/.databrickscfg` profiles, choose envs (dev/qa/prod) and warehouses.
+   - **Tracker** — detect Linear/Jira, confirm or choose, wire its MCP at the recorded scope, then connect to
+     the project/epic/ticket this repo lives under.
+   - **Databricks** (data stack) — detect `~/.databrickscfg` profiles, choose envs (dev/qa/prod) and warehouses
+     (CLI/profiles — not an MCP).
+   - **Stack MCPs** — only what the project needs: Slack (asked, default no), Vercel (web + Vercel deploy
+     detected), Supabase or Neon (per the project's database). All official remote OAuth endpoints.
+   - **Handshake transport** — `auto` (synced-folder vs git-remote, for `/handshake`).
 
-It then writes the Tier-B files, bootstraps the toolchain (git, npm, husky, the Agent Teams flag), and is
+It then writes the Tier-B files, bootstraps the toolchain (git, npm, husky, the Agent Teams flag), wires and
+verifies the project's MCP servers at the recorded scope, and is
 idempotent (re-runnable; never clobbers protected, append-only, or `.local` files).
 
 ---

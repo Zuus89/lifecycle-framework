@@ -38,7 +38,8 @@
   },
 
   "mcp": {
-    "scope": "{{MCP_SCOPE}}"
+    "scope": "{{MCP_SCOPE}}",
+    "servers": {{MCP_SERVERS_JSON}}
   },
 
   "handshake": {
@@ -130,21 +131,8 @@
       "Write(scripts/**)",
       "Edit(scripts/**)",
 
-      "mcp__claude_ai_Linear__get_issue",
-      "mcp__claude_ai_Linear__list_issues",
-      "mcp__claude_ai_Linear__list_comments",
-      "mcp__claude_ai_Linear__get_team",
-      "mcp__claude_ai_Linear__list_issue_labels",
-      "mcp__claude_ai_Linear__save_comment",
-      "mcp__claude_ai_Linear__save_issue",
-
-      "mcp__claude_ai_Atlassian__getJiraIssue",
-      "mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql",
-      "mcp__claude_ai_Atlassian__addCommentToJiraIssue",
-      "mcp__claude_ai_Atlassian__editJiraIssue",
-      "mcp__claude_ai_Atlassian__getTransitionsForJiraIssue",
-      "mcp__claude_ai_Atlassian__transitionJiraIssue",
-      "mcp__claude_ai_Atlassian__getAccessibleAtlassianResources",
+      "mcp__linear",
+      "mcp__atlassian",
 
       "WebFetch(domain:github.com)"
     ],
@@ -156,5 +144,5 @@
   },
 
   "enabledMcpjsonServers": [],
-  "enableAllProjectMcpServers": true
+  "enableAllProjectMcpServers": false
 }

@@ -144,9 +144,10 @@ The brief arrives from the human — short and intentionally rough (goal + motiv
 team's job, not the brief's. Before any work begins:
 
 1. Move the ticket to **In Progress** in the tracker. Read the tracker type from `settings.json`:
-   - **Linear** → `mcp__...Linear__save_issue` with `state: "In Progress"` on the ticket
-     (`<TRACKER_KEY>-NNN`, on the team/project from config).
-   - **Jira** → `mcp__...Atlassian__transitionJiraIssue` to the In-Progress transition on the issue key
+   - **Linear** → the wired `linear` server's issue-update tool (`mcp__linear__*` — discover the exact name
+     from the session tool list) with `state: "In Progress"` on the ticket (`<TRACKER_KEY>-NNN`, on the
+     team/project from config).
+   - **Jira** → `mcp__atlassian__transitionJiraIssue` to the In-Progress transition on the issue key
      (project key + cloud id from config).
    - **none** → mark the matching `TODO.md` line as in-progress.
 2. Create the spec file `docs/claude_tasks/NN_slug.md` with the brief preserved under `## Brief`

@@ -1,7 +1,7 @@
 ---
 name: log-tracker
 description: Dual-write milestone logger. Posts a mirrored comment to the active tracker issue (Linear OR Jira) AND appends one JSON Lines record to docs/activity_log.jsonl, cross-referenced by the tracker comment id. Branches on the tracker chosen at init (linear | jira | none). Also applies/removes state labels and state transitions based on the comment tag. Use at every milestone worth surfacing to the tracker. For the cheap, tracker-free half of the dual-write, use /log-activity instead.
-allowed-tools: Bash, Read, Edit, Write, mcp__claude_ai_Linear__save_comment, mcp__claude_ai_Linear__get_issue, mcp__claude_ai_Linear__save_issue, mcp__claude_ai_Atlassian__addCommentToJiraIssue, mcp__claude_ai_Atlassian__getJiraIssue, mcp__claude_ai_Atlassian__editJiraIssue, mcp__claude_ai_Atlassian__getTransitionsForJiraIssue, mcp__claude_ai_Atlassian__transitionJiraIssue
+allowed-tools: Bash, Read, Edit, Write, mcp__linear, mcp__atlassian
 ---
 
 # Log to Tracker (dual-write milestone logger)
@@ -199,12 +199,17 @@ marker describing what the issue delivers:
 
 ## Branch: `tracker = linear` (formerly log-linear)
 
+> Tool names below are **indicative** — the wired server (`linear` per `settings.json → mcp.servers`, official
+> remote endpoint) may name its verbs differently across versions. Discover the exact `mcp__linear__*` tool
+> names from the session tool list before calling; the same applies to the Jira branch (`mcp__atlassian__*`,
+> whose verbs below match the official Atlassian server today).
+
 ### Prerequisite
-Confirm `mcp__claude_ai_Linear__save_comment` is available. If the Linear MCP is not connected →
+Confirm a comment-creation tool under `mcp__linear__*` is available. If the Linear MCP is not connected →
 **fail with a clear message**; write nothing (no comment, no JSONL line).
 
 ### Post the comment
-Create the comment via `mcp__claude_ai_Linear__save_comment`:
+Create the comment via `mcp__linear__save_comment`:
 - `issueId`: the derived issue id (`<KEY>-NNN`)
 - `body`: the markdown comment in the standard format above
 
@@ -214,9 +219,9 @@ line. Use `response.id` directly — no fallback lookup.
 
 ### Apply labels (state markers)
 Linear `save_issue` `labels` param **REPLACES** the full set. To add or remove one label:
-1. Read current labels: `mcp__claude_ai_Linear__get_issue` → `issue.labels.nodes[].name`
+1. Read current labels: `mcp__linear__get_issue` → `issue.labels.nodes[].name`
 2. Compute new set = current + added (or current − removed)
-3. Pass as `labels` (array of names or ids) to `mcp__claude_ai_Linear__save_issue`
+3. Pass as `labels` (array of names or ids) to `mcp__linear__save_issue`
 
 Never drop unrelated labels. Always preserve project-specific labels (phase markers, `frontend`,
 `backend`, `Decision Needed`, etc.).
@@ -230,11 +235,11 @@ by the returned comment id, apply state via labels and status transitions. Jira 
 "status" into two different operations, so the side-effects map to two different tools.
 
 ### Prerequisite
-Confirm `mcp__claude_ai_Atlassian__addCommentToJiraIssue` is available **and** `trackerCloudId` was
+Confirm `mcp__atlassian__addCommentToJiraIssue` is available **and** `trackerCloudId` was
 resolved in Step 0. If either is missing → **fail with a clear message**; write nothing.
 
 ### Post the comment
-Create the comment via `mcp__claude_ai_Atlassian__addCommentToJiraIssue`:
+Create the comment via `mcp__atlassian__addCommentToJiraIssue`:
 - `cloudId`: `trackerCloudId` (from Step 0)
 - `issueIdOrKey`: the derived issue key (`<KEY>-NNN`)
 - `commentBody`: the **same** markdown comment built in the common procedure (identical to Linear)
@@ -249,10 +254,10 @@ from the response — do not re-fetch.
 ### Apply labels (state markers: `blocker`, `type:*`)
 Jira labels live on the `labels` field and are edited with `editJiraIssue`. The `fields.labels`
 write **replaces** the label array, so apply the same read-compute-write discipline as Linear:
-1. Read current labels: `mcp__claude_ai_Atlassian__getJiraIssue` with `fields: ["labels"]` →
+1. Read current labels: `mcp__atlassian__getJiraIssue` with `fields: ["labels"]` →
    `fields.labels` (array of strings).
 2. Compute new set = current + added (or current − removed).
-3. Write via `mcp__claude_ai_Atlassian__editJiraIssue`:
+3. Write via `mcp__atlassian__editJiraIssue`:
    - `cloudId`: `trackerCloudId`
    - `issueIdOrKey`: the issue key
    - `fields`: `{ "labels": [ <the computed full set> ] }`
@@ -263,12 +268,12 @@ write **replaces** the label array, so apply the same read-compute-write discipl
 ### Apply status transitions (`In Review`, `Done`)
 Jira status is NOT a field write — it is a workflow transition, applied with `transitionJiraIssue`.
 A transition id is workflow-specific, so resolve it by name at runtime; never hardcode an id:
-1. List available transitions: `mcp__claude_ai_Atlassian__getTransitionsForJiraIssue` with
+1. List available transitions: `mcp__atlassian__getTransitionsForJiraIssue` with
    `cloudId` + `issueIdOrKey` → array of `{ id, name, to.name }`.
 2. Match the transition whose target status name corresponds to the desired state
    (e.g. `[Step 10 — Task closed]` → the transition leading to `Done`; `[Step 8 — Tests …]` →
    `In Review`, if the project's workflow has it). Match case-insensitively on `to.name` / `name`.
-3. Apply: `mcp__claude_ai_Atlassian__transitionJiraIssue` with
+3. Apply: `mcp__atlassian__transitionJiraIssue` with
    - `cloudId`: `trackerCloudId`
    - `issueIdOrKey`: the issue key
    - `transition`: `{ "id": "<resolved transition id>" }`
