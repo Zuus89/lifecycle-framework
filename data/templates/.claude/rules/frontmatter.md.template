@@ -23,7 +23,7 @@ tags: [frontmatter, schema, tooling, docs]
 >
 > Throughout this document, `{{TRACKER_KEY}}` is this project's ticket prefix (the
 > identifier before the number, e.g. an issue id looks like `{{TRACKER_KEY}}-432`). If this
-> project has no tracker (`{{TRACKER}} = none`), `ticket_id` is always `null` and the
+> project has no tracker (`{{TRACKER}} = none`), `ticket` is always `null` and the
 > ticket-id grammar rule is relaxed accordingly.
 
 ---
@@ -48,7 +48,7 @@ shared object whose dependents were never identified). Token reduction is a seco
 ---
 type: spec | report | review | alpha_test | council | doc | rule | agent | skill | archive | audit | handoff
 title: "Human-readable short title"
-ticket_id: {{TRACKER_KEY}}-432   # primary key when task-scoped; null for non-task docs
+ticket: {{TRACKER_KEY}}-432   # primary key when task-scoped; null for non-task docs
 status: draft | active | in_progress | done | blocked | superseded | abandoned | living | snapshot | open | answered | decided | pending
 authority: ssot | secondary | superseded   # see §4
 affects: []                       # see §5; required for specs that touch shared objects
@@ -58,7 +58,7 @@ tags: [auth, mfa]                 # lowercase kebab-case, max 8 entries
 ---
 ```
 
-`ticket_id` is the universal task key. Its value follows this project's tracker
+`ticket` is the universal task key. Its value follows this project's tracker
 (`{{TRACKER}}`): a Linear/Jira id of the form `{{TRACKER_KEY}}-<number>`, or `null` for any
 doc that is not task-scoped (and always `null` when `{{TRACKER}} = none`).
 
@@ -142,13 +142,13 @@ next_action: "<the single next step for the resuming session>"
 
 These files carry their own native frontmatter. Preserve existing `name:`, `description:`,
 `tools:`, `model:`, `allowed-tools:` fields. You MAY add `tags:` if it does not conflict. Do
-**NOT** add `ticket_id:` — these files are not task-scoped.
+**NOT** add `ticket:` — these files are not task-scoped.
 
 ### `archive` — in `docs/claude_tasks/archive/*` and `docs/**/archive/*`
 
 ```yaml
 archived_date: 2026-01-01
-superseded_by: docs/strategy.md   # path or ticket_id of the replacement
+superseded_by: docs/strategy.md   # path or ticket of the replacement
 original_date: 2026-01-01
 ```
 
@@ -165,7 +165,7 @@ issues: { high: 0, medium: 3, low: 7 }
 
 | Value | Meaning | Wins when |
 |---|---|---|
-| `ssot` | Source of truth. If two artifacts disagree, this one wins. | Always — at most **one** `ssot` per `(ticket_id, surface)` pair. |
+| `ssot` | Source of truth. If two artifacts disagree, this one wins. | Always — at most **one** `ssot` per `(ticket, surface)` pair. |
 | `secondary` | Reference / context, not authoritative. | Loses to `ssot` on any conflict (reports, reviews, handoffs). |
 | `superseded` | Historical, no longer authoritative. | Never wins. Read-only audit trail. |
 
@@ -227,10 +227,16 @@ repo surface). Purely local changes MAY omit `affects:`.
 | `migration.<id>` | A database migration / schema-change unit | `migration.0042` |
 | `dep.<package>` | An external dependency | `dep.express`, `dep.pydantic` |
 | `repo.<section>` | A repository-level surface | `repo.docs`, `repo.scripts`, `repo.ci`, `repo.hooks`, `repo.layout` |
+| `module.<name>` | A code module / package inside the repo | `module.auth`, `module.etl` |
+| `interface.<name>` | A shared programmatic interface / contract | `interface.PaymentProvider` |
+| `doc.<name>` | A governed document consumed by other artifacts | `doc.strategy`, `doc.architecture` |
 
-This prefix set is the generic baseline. A project MAY extend it with stack-specific prefixes
-by documenting the addition here (this file is the SSOT, so the addition is then valid); the
-validator checks `affects:` items against the grammar declared in this section.
+This prefix set is the generic baseline. **The machine copy of this grammar is
+`corpus.config.mjs → AFFECTS_PREFIXES` — the validator checks against THAT list, so the two
+must stay in sync.** A project MAY extend the grammar with stack-specific prefixes by adding
+them to `AFFECTS_PREFIXES` AND documenting the addition here in the same change; a prefix
+documented here but missing from the config (or vice versa) is exactly the drift this warning
+exists to prevent.
 
 ---
 
@@ -246,14 +252,14 @@ section is its specification.
 2. **YAML parses** — the frontmatter block is valid YAML.
 3. **`type:` is in the type enum** (§2).
 4. **`status:` is a valid value** for the type (§2/§3).
-5. **`ticket_id:` matches `^{{TRACKER_KEY}}-\d+$` or is `null`** — and is present (not omitted) on `type: spec`. When `{{TRACKER}} = none`, only `null` is accepted.
+5. **`ticket:` matches `^{{TRACKER_KEY}}-\d+$` or is `null`** — and is present (not omitted) on `type: spec`. When `{{TRACKER}} = none`, only `null` is accepted.
 6. **Cross-references resolve** — every `depends_on:` / `supersedes:` ticket id exists in the corpus index.
 7. **`authority:` ∈ `{ssot, secondary, superseded}`**.
 8. **`affects:` items match the prefix grammar** (§6).
 9. **`affects:` required** when `type: spec` AND any branch commit touches a shared object (§6).
 10. **UTF-8 without BOM** — the file does not start with `\xEF\xBB\xBF`.
 11. **No leftover template sentinel** — the "DELETE THIS HEADER BEFORE PUBLISHING" marker is not present in a published artifact under `docs/claude_tasks/` or `docs/knowledge_base/`.
-12. **At most one `ssot`** per `(ticket_id, surface)` pair (§4).
+12. **At most one `ssot`** per `(ticket, surface)` pair (§4).
 
 ### Soft rules (warning only)
 
@@ -278,7 +284,7 @@ files that lack it:
 1. **Skip** any file whose line 1 is `---` (idempotent — never overwrite existing frontmatter).
 2. **Detect `type:`** from the path glob (§5).
 3. **Derive `title:`** from the first `# H1`; fall back to the filename slug → Title Case.
-4. **Derive `ticket_id:`** by matching `{{TRACKER_KEY}}-\d+` in the filename or first ~100 lines; `null` if not found.
+4. **Derive `ticket:`** by matching `{{TRACKER_KEY}}-\d+` in the filename or first ~100 lines; `null` if not found.
 5. **Derive `created:`** from `git log --diff-filter=A --follow --format=%aI <path> | tail -1`.
 6. **Derive `updated:`** from `git log -1 --format=%aI <path>`.
 7. **Derive `authority:`** from the path-glob default (§5).
@@ -326,10 +332,10 @@ Machine-readable cache from the same build, committed for offline queries:
   "files_indexed": 0,
   "by_object": {
     "data.users": [
-      { "ticket_id": "{{TRACKER_KEY}}-348", "task_number": 10, "path": "...", "created": "2026-01-01" }
+      { "ticket": "{{TRACKER_KEY}}-348", "task_number": 10, "path": "...", "created": "2026-01-01" }
     ]
   },
-  "by_ticket_id": { "{{TRACKER_KEY}}-348": { "title": "...", "path": "...", "affects": ["..."] } }
+  "by_ticket": { "{{TRACKER_KEY}}-348": { "title": "...", "path": "...", "affects": ["..."] } }
 }
 ```
 
@@ -367,7 +373,7 @@ After a task lands, in addition to its chronicle/memory/tracker steps, `/close-t
    appends any not already declared.
 
 ### `pm` Step 1
-When two artifacts state the same fact for one `ticket_id`, the PM MUST check which carries
+When two artifacts state the same fact for one `ticket`, the PM MUST check which carries
 `authority: ssot` before writing the spec — the `ssot` artifact governs (§4).
 
 ---

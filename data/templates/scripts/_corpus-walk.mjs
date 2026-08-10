@@ -48,6 +48,9 @@ export function shouldExclude(filePath, repoRoot) {
   const parts = relative(repoRoot, filePath).split(/[/\\]/);
   if (parts.some(p => EXCLUDED_DIRS.has(p))) return true;
   if (parts.length === 1 && EXCLUDED_ROOT_FILES.has(parts[0])) return true;
+  // The project operating contract (auto-loaded by Claude Code, no frontmatter)
+  // is a human-owned doc, not a governed corpus artifact.
+  if (parts.length === 2 && parts[0] === '.claude' && parts[1] === 'CLAUDE.md') return true;
   if (parts[0] === '.claude' && parts[1] === 'skills' && parts.length > 3) {
     // Allow project-owned <name>/SKILL.md (depth 4); exclude everything else.
     if (parts.length === 4 && parts[3] === 'SKILL.md' && PROJECT_SKILLS.has(parts[2])) {

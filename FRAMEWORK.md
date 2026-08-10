@@ -144,10 +144,12 @@ One place per artifact type, so the folder is a corpus, not a pile.
 
 ## E. Configuration & operational files
 
-### `CLAUDE.md` (repo root)
+### `.claude/CLAUDE.md`
 - **What:** The per-project operating contract read at every session start: communication principle, model policy,
   session-start protocol, lifecycle numbering, role roster, stack standards, tracker identity, build commands.
-- **Why:** The single entry point that tells every agent how *this* project works. (A plugin-root CLAUDE.md is not
+- **Why:** The single entry point that tells every agent how *this* project works. Lives INSIDE `.claude/`
+  (auto-loaded by Claude Code from there — the framework's canonical location; the repo root is the legacy spot).
+  (A plugin-root CLAUDE.md is not
   loaded as context — it must live in the project, which is why it's scaffolded.)
 
 ### `.claude/settings.json` (committed)

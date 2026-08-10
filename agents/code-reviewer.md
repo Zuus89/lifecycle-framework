@@ -32,7 +32,7 @@ Bash is for read-only checks only (syntax compile, grep, version probes) — nev
 
 You are a plugin-resident agent installed once and run across many projects. Read the project specifics at runtime; never assume them:
 
-- **`CLAUDE.md` (repo root)** — project conventions, stack, environment rules, model policy, protected-file list, hard rules.
+- **`.claude/CLAUDE.md`** — project conventions, stack, environment rules, model policy, protected-file list, hard rules.
 - **`.claude/settings.json`** — tracker type, stack, enabled MCP, permission allowlist.
 - **`corpus.config.mjs`** — project constants (paths, tracker key, project slug).
 - **`.claude/rules/*.md`** — governance rules, especially `security.md` (no hardcoded secrets, parameterized queries, input validation) and `frontmatter.md`.

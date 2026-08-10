@@ -46,7 +46,7 @@ The corpus engine lives in the **project repo** (`scripts/*.mjs` + `corpus.confi
      git log -1 --format=%cs -- <file>
      ```
      A modification dated **after** `sealed_date` that is **not** a sanctioned status transition (`sealed` → `passed`/`failed` at lifecycle Step 8) is a **High** finding — the alpha test was edited after it was frozen, which defeats the bias-free verdict. Report the file, the `sealed_date`, and the offending commit date.
-   - **Mandatory-read paths:** every file referenced by the session-start protocol in the project root `CLAUDE.md` must exist. Treat a path that `CLAUDE.md` itself marks as expected-absent (e.g. `docs/architecture.md` before it is first authored) as not-a-finding.
+   - **Mandatory-read paths:** every file referenced by the session-start protocol in `.claude/CLAUDE.md` (legacy scaffolds: the repo-root `CLAUDE.md`) must exist. Treat a path that `CLAUDE.md` itself marks as expected-absent (e.g. `docs/architecture.md` before it is first authored) as not-a-finding.
    - **Staleness:** `updated:` older than 60 days on docs with `status: active | living | in_progress`.
    - **Orphan specs:** a spec with `status: done` and no matching report in `docs/claude_tasks/reports/` nor any review in `docs/claude_tasks/reviews/` for its `task_number`.
    - **Activity silence:** a spec with `status: in_progress` and no line for its ticket / `task_number` in `docs/activity_log.jsonl` within the last 14 days (ignore `session: "backfill"` lines).
@@ -116,4 +116,4 @@ The drift window between scheduled runs is the cron interval; real-time freshnes
 - Affects lookup: `scripts/affects-lookup.mjs <object>`
 - Per-project corpus constants: `corpus.config.mjs`
 - Activity log (for the silence check): `docs/activity_log.jsonl` — contract in the `/log-activity` skill
-- Alpha-test freeze rule: project root `CLAUDE.md` (lifecycle Step 6 seal / Step 8 run) + Hard rules above
+- Alpha-test freeze rule: `.claude/CLAUDE.md` (lifecycle Step 6 seal / Step 8 run) + Hard rules above

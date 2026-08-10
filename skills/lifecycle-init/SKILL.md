@@ -32,8 +32,12 @@ Run these read-only probes and record the results; you will use them in the inte
 than ask blindly**.
 
 1. **Target directory.** State the absolute CWD and confirm it is the project root to set up.
-2. **Prior run (idempotency).** Check for `CLAUDE.md`, `corpus.config.mjs`, `.claude/settings.json`. If any exist →
-   **update mode** (re-run pre-filled, prompt before overwriting; §7 governs protection). Else → **fresh scaffold**.
+2. **Prior run (idempotency).** Check for `.claude/CLAUDE.md` (or the **legacy root** `CLAUDE.md` — earlier
+   scaffolds wrote it there), `corpus.config.mjs`, `.claude/settings.json`. If any exist → **update mode**
+   (re-run pre-filled, prompt before overwriting; §7 governs protection). Else → **fresh scaffold**.
+   **Legacy-location migration:** if a root `CLAUDE.md` exists and `.claude/CLAUDE.md` does not, offer
+   `git mv CLAUDE.md .claude/CLAUDE.md` — the canonical home is INSIDE `.claude/` (both locations are
+   auto-loaded by Claude Code, but the framework standardizes on `.claude/CLAUDE.md`; never leave two copies).
 3. **Templates.** Verify `${CLAUDE_PLUGIN_ROOT}/data/templates/` exists; list its tree once. If missing, stop — the
    plugin install is broken.
 4. **Toolchain.** `git --version`, `node --version` (need 24+), `npm --version`, and `python --version` (only needed
@@ -341,7 +345,8 @@ surrounding template line still reads correctly.
 
 For every `*.template` under `${CLAUDE_PLUGIN_ROOT}/data/templates/`: read it, substitute every `{{VAR}}`, compute
 the output path (same relative path under project root, `.template` stripped), create parent dirs, apply the §7
-overwrite policy, write. Expected map: `CLAUDE.md` (stack-variant), `TODO.md` (protected), `.gitignore`, `.mcp.json` (expected contents per the §1 note — empty by default; project scope → the wired servers, **merge with, never overwrite, servers already written by `claude mcp add --scope project`**; basic-memory per §6.4);
+overwrite policy, write. Expected map: `.claude/CLAUDE.md` (stack-variant — **inside `.claude/`, never the repo
+root**), `TODO.md` (protected), `.gitignore`, `.mcp.json` (expected contents per the §1 note — empty by default; project scope → the wired servers, **merge with, never overwrite, servers already written by `claude mcp add --scope project`**; basic-memory per §6.4);
 `docs/{strategy.md,architecture.md}` (protected), `project_chronicle.md` (append-only, init entry `{{TODAY}}`),
 `context_snapshot.md`, empty `activity_log.jsonl`, `_templates/*`, `claude_tasks/{alpha_tests,reviews,reports,council,archive,handoffs}`,
 `audits/`, `knowledge_base/`, INDEX (autogen in §6); `.claude/{settings.json (committed, has Agent Teams env +

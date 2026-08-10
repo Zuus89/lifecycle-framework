@@ -105,6 +105,6 @@ The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task n
 - Frontmatter taxonomy SSOT: `.claude/rules/frontmatter.md`
 - Validator: `scripts/validate-frontmatter.mjs`
 - Per-project corpus constants (paths, tracker key, project slug): `corpus.config.mjs`
-- Lifecycle steps and the freeze rule: project root `CLAUDE.md` + `FRAMEWORK.md`
+- Lifecycle steps and the freeze rule: `.claude/CLAUDE.md` + `FRAMEWORK.md`
 - Council verdict shape: the `/council` skill (which scaffolds via `/new-doc council`)
 - Index rebuild + dangling-ref / sealed-test checks: the `/audit-corpus` skill

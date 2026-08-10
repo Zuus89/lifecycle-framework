@@ -41,7 +41,7 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
 
 - **Tier A — plugin-resident** (agents, skills, the safety hook, MCP): installed **once**, available in **every**
   project automatically. Never copied per project.
-- **Tier B — project-scaffolded** (`CLAUDE.md`, the `docs/` governance tree, `settings.json`, rules, husky, CI,
+- **Tier B — project-scaffolded** (`.claude/CLAUDE.md`, the `docs/` governance tree, `settings.json`, rules, husky, CI,
   corpus scripts): written into **each** project by `/lifecycle-init` from bundled templates.
 
 ### What the plugin ships (Tier A)
@@ -56,7 +56,7 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
 
 ### What `/lifecycle-init` scaffolds (Tier B)
 
-`CLAUDE.md`; a `docs/` tree (`strategy.md`*, `architecture.md`*, `project_chronicle.md`†, `context_snapshot.md`,
+`.claude/CLAUDE.md` (the operating contract — always inside `.claude/`, never the repo root); a `docs/` tree (`strategy.md`*, `architecture.md`*, `project_chronicle.md`†, `context_snapshot.md`,
 `activity_log.jsonl`†, `INDEX.md`+`index.json`, `_templates/`, `claude_tasks/{spec, alpha_tests/, reviews/, reports/,
 council/, handoffs/, archive/}`, `audits/`, `knowledge_base/`); `TODO.md`*; `.claude/` (`settings.json`, `.local/secrets.env`,
 `rules/*`, `log_session`); `.husky/`; `.github/workflows/`; the corpus-script engine. *(\* protected, † append-only.)*

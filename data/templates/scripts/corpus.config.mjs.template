@@ -151,8 +151,9 @@ export const BRANCH_TICKET_REGEX = new RegExp(`${TICKET_KEY}-?(\\d+)`, 'i');
  *   doc.<path-slug>   a governed document
  */
 export const AFFECTS_PREFIXES = [
-  'module.', 'data.', 'interface.',
-  'repo.', 'env.', 'dep.', 'doc.',
+  // Keep in sync with .claude/rules/frontmatter.md §6 (the documented grammar).
+  'data.', 'fn.', 'api.', 'ui.', 'auth.', 'job.', 'env.', 'migration.',
+  'dep.', 'repo.', 'module.', 'interface.', 'doc.',
 ];
 
 export const AFFECTS_PREFIX_RE = new RegExp(
@@ -190,6 +191,7 @@ export const EXCLUDED_DIRS = new Set([
 export const EXCLUDED_ROOT_FILES = new Set([
   'TODO.md',
   'README.md',
+  'CLAUDE.md', // legacy root location — canonical home is .claude/CLAUDE.md (also excluded, in _corpus-walk)
 ]);
 
 /**

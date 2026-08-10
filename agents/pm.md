@@ -18,7 +18,7 @@ tracker (Jira/Linear/none), tracker identity, stack, ticket prefix, communicatio
 protected files, build commands, model policy — **from the project at runtime**, never from
 hardcode. The runtime sources of truth are:
 
-- `CLAUDE.md` (repo root) — operating contract: communication principle, model policy,
+- `.claude/CLAUDE.md` — operating contract: communication principle, model policy,
   lifecycle numbering, role roster, stack standards, tracker identity, build commands, protected files.
 - `.claude/settings.json` — Agent Teams flag, tracker type + connection, stack, enabled MCP servers,
   permission allowlist, hook wiring.

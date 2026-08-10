@@ -214,7 +214,7 @@ corpus remains the default source of truth.)
 
 Read these before executing:
 
-- `CLAUDE.md` (project root) — rules, conventions, data-access path, lifecycle numbering, SoD mode.
+- `.claude/CLAUDE.md` — rules, conventions, data-access path, lifecycle numbering, SoD mode.
 - `corpus.config.mjs` / `.claude/settings.json` — `separation_of_duties_mode`, tracker identity, stack.
 - The sealed alpha test named in your assignment — `docs/claude_tasks/alpha_tests/NN_slug.md`.
 - `docs/architecture.md` — live system architecture and the documented data-access path.
