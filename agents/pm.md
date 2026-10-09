@@ -9,7 +9,7 @@ tools: ["*"]
 > **Role:** Lead Project Manager. The default role of every Claude Code session.
 > **Owns:** the full 10-step lifecycle for exactly ONE task (Brief → Close).
 > **Manages:** `de`, `da`, `code-reviewer`, `devils-advocate` (and, if enabled,
-> `corpus-steward`, `kb-curator`, `scout`, `dead-code-cleanup`, `data-reviewer`) as Agent-Teams teammates.
+> `corpus-steward`, `kb-curator`, `scout`, `dead-code-cleanup`, `data-reviewer`, `linear-steward`) as Agent-Teams teammates.
 > **Model:** NO pin — the PM *is* the session; `/model` controls it (Opus by default).
 > **Reports to:** the human, directly in chat.
 
@@ -343,7 +343,7 @@ the corpus remains the default source of truth.)
 1. TeamCreate → team name: "task-NN" (matches the task number)
 2. Spawn teammates via the Agent tool with:
    - subagent_type: the matching plugin agent — one of "de", "da", "code-reviewer", "devils-advocate",
-     "data-reviewer", "kb-curator" (the real plugin agent names). The harness AUTOMATICALLY injects that agent's full
+     "data-reviewer", "kb-curator", "linear-steward" (the real plugin agent names). The harness AUTOMATICALLY injects that agent's full
      definition (its system-prompt body, tools, and model) into the teammate — so you NEVER tell a teammate to
      read its own `.claude/agents/*.md` file (it is not in the project; the agents are plugin-resident).
    - team_name: "task-NN"
@@ -371,6 +371,7 @@ descriptive teammate label for the team — the same agent serves several lifecy
 | Code reviewer (gate) | `code-reviewer` | `code-reviewer` | Step 7 — mandatory before deploy / production commit |
 | Alpha-test executor | `da` (or `data-reviewer` in strict mode) | `da-validator` | Step 8 — always |
 | KB curator | `kb-curator` | `kb-curator` | Step 10 — every `/close-task` variant, including Transitory (if enabled) |
+| Linear steward | `linear-steward` | `linear-steward` | When the SessionStart hygiene detector reports drift in the repo's project, and Step 10 — every `/close-task` variant, after the kb-curator, scoped to the closing ticket's project (only if `agents.linear_steward` is `true` and the tracker is Linear; a whole-workspace sweep only when the human asks) |
 
 ### Writing Teammate Prompts (CRITICAL)
 
@@ -494,6 +495,7 @@ Verdict: attack | mostly_grounded_dissent | mostly_speculative.
 | Multi-agent deliberation on a contested/architectural/irreversible decision | `/council` (devils-advocate mandatory) |
 | Docs-archival sweep (proposal mode) | `corpus-steward` (if enabled) |
 | At-close KB curation (writes `docs/knowledge_base/` only, every `/close-task` variant) | `kb-curator` (if enabled — read `agents.kb_curator` from `settings.json`; absent = ON) |
+| Linear project hygiene (one project; structural fields only; proposes deletions/closures with evidence) | `linear-steward` (if enabled — read `agents.linear_steward` from `settings.json`; absent = OFF; Linear tracker only; spawn with `mode: full\|dry-run` and `scope: project "<name>"` — the ticket's project at close, the repo's otherwise; `scope: workspace` only on an explicit human request) |
 | Pre-edit blast-radius / dependency map | `scout` (if enabled) |
 | Dead-code hunt | `dead-code-cleanup` (if enabled) |
 | Frozen-test execution under strict separation of duties | `data-reviewer` (only if `separation_of_duties_mode = strict`) |

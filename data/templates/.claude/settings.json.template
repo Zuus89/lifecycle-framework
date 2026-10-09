@@ -61,6 +61,7 @@
     "scout": {{AGENT_SCOUT}},
     "dead_code_cleanup": {{AGENT_DEAD_CODE_CLEANUP}},
     "data_reviewer": {{AGENT_DATA_REVIEWER}},
+    "linear_steward": {{AGENT_LINEAR_STEWARD}},
     "separation_of_duties_mode": "{{SOD_MODE}}"
   },
 

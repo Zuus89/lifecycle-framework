@@ -83,11 +83,15 @@ Then run the interview in **exactly this order**: A → B → C. Echo each captu
    | devils-advocate | `claude-opus-4-8` | `{{MODEL_DEVILS_ADVOCATE}}` |
 
    (Optional agents are fixed by policy: `corpus-steward`/`scout`/`dead-code-cleanup` = `sonnet`, `data-reviewer` =
-   `claude-opus-4-8`, `kb-curator` = `claude-opus-5`. Their pins live in the Tier-A agent frontmatter; here you only
-   document the policy.)
+   `claude-opus-4-8`, `kb-curator` and `linear-steward` = `claude-opus-5`. Their pins live in the Tier-A agent
+   frontmatter; here you only document the policy.)
 6. **Agent roster.** Core five always on. Toggles: `corpus-steward` **ON** by default; `kb-curator` **ON** by
    default (at-close KB curation on every `/close-task` variant — writes only `docs/knowledge_base/`);
-   `data-reviewer` OFF (ON sets `separation_of_duties_mode = strict`); `scout` OFF; `dead-code-cleanup` OFF.
+   `data-reviewer` OFF (ON sets `separation_of_duties_mode = strict`); `scout` OFF; `dead-code-cleanup` OFF;
+   `linear-steward` OFF (offer it only when the tracker is Linear — it keeps this repo's project, and at close the
+   closing ticket's project, to the Initiative → Project → Issue taxonomy, structural fields only, never the whole
+   workspace unless asked; ON needs `LINEAR_API_KEY` in `.claude/.local/secrets.env` for the SessionStart hygiene
+   detector, while the agent itself uses the Linear MCP; the detector reads the project from `tracker.project`).
    Record the enabled set + SoD mode — **they are written to the `agents` block of `.claude/settings.json`**, the
    machine-readable roster that `/close-task` and the PM read at runtime. (Re-running init on a project scaffolded
    before this block existed simply ADDS it.)
@@ -326,7 +330,7 @@ Resolve all before substitution; use **exactly** these names:
 | `{{DATABRICKS}}` (`on\|off`) / `{{DATABRICKS_ENVS}}` (comma list) / `{{DATABRICKS_PROFILE}}` / `{{DATABRICKS_DEFAULT_HOST}}` | C.3 |
 | `{{DATABRICKS_HOSTS_JSON}}` / `{{DATABRICKS_WAREHOUSES_JSON}}` | C.3 — JSON objects keyed by env (e.g. `{"dev":"...","prod":"..."}`); resolve to `{}` when `{{DATABRICKS}}=off` |
 | `{{MEMORY_BACKEND}}` (`corpus\|basic-memory`, default `corpus`) | A.7 |
-| `{{AGENT_CORPUS_STEWARD}}` / `{{AGENT_KB_CURATOR}}` / `{{AGENT_SCOUT}}` / `{{AGENT_DEAD_CODE_CLEANUP}}` / `{{AGENT_DATA_REVIEWER}}` | A.6 — bare JSON booleans (`true`/`false`, unquoted); defaults `true, true, false, false, false` |
+| `{{AGENT_CORPUS_STEWARD}}` / `{{AGENT_KB_CURATOR}}` / `{{AGENT_SCOUT}}` / `{{AGENT_DEAD_CODE_CLEANUP}}` / `{{AGENT_DATA_REVIEWER}}` / `{{AGENT_LINEAR_STEWARD}}` | A.6 — bare JSON booleans (`true`/`false`, unquoted); defaults `true, true, false, false, false, false` (`linear-steward` only offered when `{{TRACKER}} = linear`) |
 | `{{SOD_MODE}}` (`collapsed\|strict`) | A.6 — `strict` iff `data-reviewer` is ON, else `collapsed` |
 | `{{TODAY}}` | `date +%F` |
 
@@ -360,7 +364,9 @@ resolve there). If a template is absent, report it — don't fabricate.
 ## 3–4. Where connection config + secrets go
 
 - **`.claude/.local/secrets.env`** (gitignored): `PYTHONIOENCODING=utf-8` (if Databricks), tracker REST token(s)
-  **only if C.2.3's script-needs-the-API condition fired** (the tracker MCP is OAuth — no token), and
+  **only if C.2.3's script-needs-the-API condition fired** (the tracker MCP is OAuth — no token) **or
+  `agents.linear_steward` is ON** (`LINEAR_API_KEY` feeds the plugin's read-only SessionStart hygiene detector;
+  the steward agent itself uses the MCP), and
   `GITHUB_TOKEN` **only if a script/MCP needs the GitHub API** (fetched from the selected account via
   `gh auth token --user <account>`) — git push itself uses the account's credential helper, not this.
 - **Memory backend:** the default (`{{MEMORY_BACKEND}} = corpus`) has **no memory MCP** — the markdown corpus

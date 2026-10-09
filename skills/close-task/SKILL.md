@@ -127,6 +127,26 @@ cannot be fixed, evidence unreadable), report it loudly in the close report and 
 is skipped-and-reported, never a blocked close. If `agents.kb_curator` is explicitly `false`, note
 "KB curation: disabled" in the close report and skip this subsection.
 
+### Linear project hygiene — linear-steward (ALL variants; opt-in, Linear tracker only)
+
+Read `agents.linear_steward` from `.claude/settings.json` (absent block/key = **disabled** — this one is opt-in).
+If it is `true` **and** `tracker = linear`, spawn the `linear-steward` teammate **after the kb-curator** with a
+self-contained brief: `mode: full`, **`scope: project` — the project of the ticket being closed** (the steward
+resolves it live from the ticket id; a Research close with no ticket → `settings.json → tracker.project`), the
+ticket id, the session id, and whether the detector's cache (`.claude/.local/linear-hygiene-cache.json`, 12 h)
+is fresh. The steward runs the §7 checks **inside that one project** — never the whole workspace at a close —
+**applies structural fixes only** (the project's status/dates/initiative, its issues' parent and title prefix,
+labels read-compute-write, orphan issues whose prefix unambiguously belongs to the project — at most 20 writes
+per run), **proposes** the rest with evidence, lists what it saw outside the project without touching it, appends a
+dated section to the `Linear steward — sweep log` document in Linear, and returns a **sweep report**. Its record
+lives in Linear, not in this repository — nothing to stage.
+
+Carry the report's summary into the close report as one line (`Linear hygiene: <project> — A applied, P proposed,
+O outside scope`) and relay the proposals to the human — they are decisions, not chores. A whole-workspace sweep
+is a separate, explicitly requested run (`scope: workspace`), never part of a close. If the spawn fails or the
+steward cannot finish, close anyway and say so: a failed sweep is skipped-and-reported, never a blocked close. If
+the flag is off or the tracker is not Linear, skip this subsection silently.
+
 ### Index rebuild — unconditional when frontmatter changed
 If any frontmatter changed this session, rebuild the corpus index by running the project's build-index script
 (its name is in `corpus.config.mjs` — typically `node scripts/build-index.mjs`). If
@@ -276,6 +296,7 @@ Skipped: strategy.md (no decision of record beyond the one chronicled)
 Variant: Research / non-lifecycle close
 Updated: docs/research/2026-06-29_slug.md (placed + frontmatter), context_snapshot.md, INDEX
 KB curation: 1 created (knowledge_base/adls-auth-quirks.md), filing plan clean
+Linear hygiene: project "Brisia Website" — 3 applied (orphans CRI-1072/1073/1074 filed by prefix [Site]), 1 proposed (reopen CRI-1091 or re-parent its 4 open children), 2 outside scope (empty initiatives — workspace sweep on request), sweep log appended
 Conditionally updated: none (repository guide / schema unchanged)
 Chronicle: skipped (no decision of record)
 Tracker: comment on PROJ-123 (no Done — investigation continues)

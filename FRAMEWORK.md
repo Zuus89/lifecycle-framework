@@ -160,7 +160,8 @@ One place per artifact type, so the folder is a corpus, not a pile.
 
 ### `.claude/.local/secrets.env` (gitignored)
 - **What:** A stub for optional script/REST secrets: tracker REST token (the tracker MCP itself is OAuth — no
-  token), GitHub token, non-catalog MCP creds. (No memory path — the corpus is the memory.)
+  token; `LINEAR_API_KEY` is also what the opt-in linear-steward hygiene detector reads at session start), GitHub
+  token, non-catalog MCP creds. (No memory path — the corpus is the memory.)
 - **Why:** Keeps credentials out of git. Never committed. (Never hardcode credentials.)
 
 ### `.claude/rules/*.md`
@@ -304,6 +305,20 @@ model (cost follows criticality), and is spawned by the PM as an Agent-Teams tea
 ### dead-code-cleanup — `dead-code-cleanup` (alias: fenrir) · default: OFF · model: Sonnet
 - **Mandate:** Dead-code hunter: unused functions/imports/modules, orphaned files, dead endpoints, stale
   TODO/FIXME. Read-only by default; deletes only on explicit approval, then re-validates. Overlaps the dead-code CI.
+
+### linear-steward — `linear-steward` · default: OFF · model: Opus 5
+- **Mandate:** Linear project hygiene (Linear tracker only) — keeps **one project** to the workspace taxonomy
+  (Initiative → Project → Issue → Sub-issue) and the §7 checklist: at `/close-task` the project of the ticket
+  being closed, for the detector the repo's `tracker.project`; a whole-workspace sweep only on explicit request.
+  Three layers, two of them deterministic hooks: a **filing guard** (PreToolUse, always on — denies `save_issue`
+  without a project and `save_project` outside exactly one initiative, warns on SET-semantics `labels`), a
+  **hygiene detector** (SessionStart, flag-gated — read-only GraphQL on the repo's project, prints the checklist
+  with counts and ids, 12 h cache, never starts Node when the flag is off), and this **agent**: spawned by the PM
+  on drift and by `/close-task` after the kb-curator. **Writes structural fields only, inside its scope** (the
+  project's status/dates/initiative, its issues' parent and title prefix, labels read-compute-write, orphan issues
+  whose prefix unambiguously belongs to it); **proposes** deletions, closures and merges with evidence; never
+  touches other projects' tickets; more than 20 writes in one run → stops and asks. Sweep record = a Linear
+  document.
 
 ## Hard prerequisite
 

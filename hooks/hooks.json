@@ -9,6 +9,27 @@
             "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/check_destructive.py\""
           }
         ]
+      },
+      {
+        "matcher": "^mcp__.*[Ll]inear.*__(save|create|update)_(issue|project)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/check_linear_filing.py\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "grep -qE '\"linear_steward\"[[:space:]]*:[[:space:]]*true' \"${CLAUDE_PROJECT_DIR:-.}/.claude/settings.json\" 2>/dev/null && node \"${CLAUDE_PLUGIN_ROOT}/hooks/linear_hygiene.mjs\"; exit 0",
+            "timeout": 30
+          }
+        ]
       }
     ]
   }

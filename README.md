@@ -48,10 +48,14 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
 
 - **Agents** — `pm`, `de`, `da`, `code-reviewer`, `devils-advocate` (core); `corpus-steward` and `kb-curator`
   (on by default — the kb-curator folds every session's durable knowledge into `docs/knowledge_base/` at
-  `/close-task`), `data-reviewer` / `scout` / `dead-code-cleanup` (optional).
+  `/close-task`), `data-reviewer` / `scout` / `dead-code-cleanup` / `linear-steward` (optional — the steward keeps
+  the ticket's Linear project to the Initiative → Project → Issue taxonomy: structural fields only, proposals for
+  the rest, a whole-workspace sweep only on request).
 - **Skills** — `/lifecycle-init`, `/close-task`, `/log-activity`, `/log-tracker`, `/council`, `/new-doc`,
   `/audit-corpus`, `/handshake` (two-machine work transfer — synced-folder or git-remote transport).
-- **Hook** — a destructive-command guard. **MCP** — none by default (empty `.mcp.json`; the corpus — chronicle +
+- **Hooks** — a destructive-command guard and a Linear filing guard (both always on: no issue without a project, no
+  project outside exactly one initiative), plus an opt-in Linear hygiene detector at session start
+  (`agents.linear_steward`, scoped to the repo's project). **MCP** — none by default (empty `.mcp.json`; the corpus — chronicle +
   snapshot + knowledge base + INDEX — is the knowledge graph; `basic-memory` opt-in at init).
 
 ### What `/lifecycle-init` scaffolds (Tier B)

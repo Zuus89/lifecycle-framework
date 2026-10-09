@@ -1,6 +1,6 @@
 {
   "name": "lifecycle-framework",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A disciplined Claude Code team framework: a role-specialized AI team runs one task at a time through a fixed ten-step lifecycle, every step logged, project state recoverable from files. Run /lifecycle-init to scaffold a new project's governance.",
   "author": {
     "name": "Cristobal Elton"
