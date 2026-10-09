@@ -1,0 +1,14 @@
+{
+  "name": "lifecycle-framework-dev",
+  "private": true,
+  "description": "Development manifest for the lifecycle-framework Claude Code plugin: runs the plugin's own test suite. Not shipped to scaffolded projects (they get data/templates/package.json.template).",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\""
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}

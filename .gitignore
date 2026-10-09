@@ -7,6 +7,10 @@ Thumbs.db
 
 # Internal planning notes — not published.
 INVENTORY.md
+RADIOGRAFIA_*.html
 # ...but DO track the bundled secrets stub template (it ships with the plugin).
 !data/templates/.claude/.local/
 !data/templates/.claude/.local/**
+
+# Plugin test workspace (rendered fixtures)
+tests/.tmp/

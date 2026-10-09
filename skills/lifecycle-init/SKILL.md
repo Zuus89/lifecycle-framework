@@ -354,7 +354,8 @@ root**), `TODO.md` (protected), `.gitignore`, `.mcp.json` (expected contents per
 `docs/{strategy.md,architecture.md}` (protected), `project_chronicle.md` (append-only, init entry `{{TODAY}}`),
 `context_snapshot.md`, empty `activity_log.jsonl`, `_templates/*`, `claude_tasks/{alpha_tests,reviews,reports,council,archive,handoffs}`,
 `audits/`, `knowledge_base/`, INDEX (autogen in §6); `.claude/{settings.json (committed, has Agent Teams env +
-connections), .local/secrets.env (gitignored), rules/*, log_session}`; `.husky/{pre-commit,post-commit,pre-push}`;
+connections), .local/secrets.env (gitignored), rules/*}` (`.claude/log_session` has no template — the log skills and
+the post-commit hook create it at runtime, gitignored); `.husky/{pre-commit,post-commit,pre-push}`;
 `.github/workflows/lint-frontmatter.yml` (+ stack optionals, **alongside** any pre-existing CI); `scripts/*.mjs` +
 `corpus.config.mjs` (scaffolded into the repo — husky/CI call them by relative path; `${CLAUDE_PLUGIN_ROOT}` does not
 resolve there). If a template is absent, report it — don't fabricate.

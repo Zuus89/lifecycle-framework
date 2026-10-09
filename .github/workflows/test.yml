@@ -1,0 +1,24 @@
+name: tests
+
+# The plugin's own safety net (tests/): hooks, the scaffolded corpus engine,
+# template rendering and cross-file consistency. One job, on every PR and on
+# pushes to main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: npm test
