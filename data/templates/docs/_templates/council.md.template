@@ -19,81 +19,109 @@ participants: [pm, de, da, code-reviewer, devils-advocate]
 
 # Council Verdict — <placeholder: topic>
 
-<!-- guidance: File goes in docs/claude_tasks/council/YYYY-MM-DD_slug_council.md.
-     Council verdicts are SSOT — they record permanent decisions and their reopen criteria.
-     status: pending until the human delivers the verdict, then decided | open.
-     The devils-advocate is a MANDATORY participant on every Council.
-     7-step protocol: PM frames the question → each role responds → devils-advocate attacks →
-     PM synthesizes → human confirms → reopen criteria recorded → in-session next steps. -->
+<!-- guidance: File goes in docs/claude_tasks/council/YYYY-MM-DD_slug_council.md, written by the PM at /council
+     Step 6 with status: pending (a recommendation, not yet a decision). Step 7 records the human verdict and
+     flips status to decided (or open if sent back). Council verdicts are SSOT.
+     Two sections are never empty: "Unresolved questions" and "Reopen criteria". If an unresolved question is
+     BLOCKING, move that section above "Decision" so the reader meets the unknowns before the recommendation.
+     The devils-advocate attack is mandatory — a council without it is invalid. -->
 
 > **Topic:** <placeholder>
-> **Decision ID:** #<placeholder> (adds to `docs/strategy.md` Decision Log)
+> **Target:** <placeholder: spec path / ticket / question>
+> **Decision ID:** #<placeholder> (adds to the `docs/strategy.md` Decision Log)
 > **Date:** <placeholder: YYYY-MM-DD>
-> **Participants:** pm, de, da, code-reviewer, devils-advocate
+> **Members:** <placeholder: de, da, code-reviewer, devils-advocate — or de, da, devils-advocate with --quick>
+> **Rounds:** <placeholder: 3, or 2 with --quick>
+> **Dissent level:** <placeholder: low | medium | high>
 
 ---
 
-## §1. Question framed by PM
+## Question
 
-<!-- guidance: The exact question put to the council. Must be specific and bounded. -->
-
----
-
-## §2. DE position
-
-<!-- guidance: Technical feasibility, implementation risk, maintenance cost. -->
+<!-- guidance: The PM's Step 1 framing: the question (one answerable sentence), the options stated neutrally,
+     the evidence available, and what a decision must satisfy. -->
 
 ---
 
-## §3. DA position
+## Decision
 
-<!-- guidance: Data / output implications, metrics, measurement approach. -->
-
----
-
-## §4. Code-reviewer position
-
-<!-- guidance: Security, correctness, attack surface, deploy-safety implications. -->
+<!-- guidance: One sentence — the recommendation until Step 7, the verdict after. -->
 
 ---
 
-## §5. Devil's-advocate attack
+## Reasoning
 
-<!-- guidance: The grounded adversarial case. What would make this decision wrong in 6 months?
-     Every attack cites evidence (grounded-dissent protocol). -->
-
----
-
-## §6. PM synthesis
-
-<!-- guidance: Reconcile the positions. State the recommendation with reasoning. -->
-
----
-
-## §7. Human verdict
-
-<!-- guidance: The final decision, confirmed by the human in chat.
-     Flip frontmatter status: pending → decided once this is filled. -->
-
-**Decision: <placeholder>**
-
-Rationale: <placeholder>
-
----
-
-## Reopen criteria
-
-<!-- guidance: Under what conditions may this decision be reopened? Be concrete — a metric
-     threshold, a new constraint, a failed assumption. A council decision without reopen
-     criteria is incomplete. -->
+<!-- guidance: 3–5 bullets, each with an evidence citation. -->
 
 - <placeholder>
 
 ---
 
-## Next steps
+## Unresolved questions
 
-<!-- guidance: PM-owned next steps that MUST execute IN-SESSION (not deferred). -->
+<!-- guidance: What the council could NOT answer with current information, why, and what would resolve it.
+     Never silently empty: if none, write "Council reached high confidence on all dimensions — no unresolved
+     items." Blocking items become tracker sub-issues before implementation starts. -->
 
-1. <placeholder>
-2. <placeholder>
+- <placeholder>
+
+---
+
+## Accepted risks
+
+<!-- guidance: devils-advocate attacks acknowledged but not mitigated (PM response "accept risk"). -->
+
+| Risk (from the devils-advocate) | Why accepted | Trigger to revisit |
+|---|---|---|
+| <placeholder> | <placeholder> | <placeholder> |
+
+---
+
+## Reopen criteria
+
+<!-- guidance: The concrete conditions under which this decision may be reopened — a metric threshold, a failed
+     assumption, a cost crossed, a dependency change. A decision without them can never be revisited cleanly. -->
+
+- <placeholder>
+
+---
+
+## Recommended next steps
+
+<!-- guidance: Concrete actions, each owned by a named agent or the human. -->
+
+1. [<placeholder: owner>] <placeholder: action>
+
+---
+
+## Human verdict (Step 7)
+
+<!-- guidance: Recorded verbatim once the human decides; then flip status pending → decided (or open). -->
+
+**Verdict:** <placeholder: accepted | modified | rejected — in the human's words>
+
+---
+
+## Council meta
+
+- **Members invoked:** <placeholder>
+- **Rounds run:** <placeholder>
+- **Dissent observed:** <placeholder: where members disagreed and how it was resolved>
+- **devils-advocate attacks:** <placeholder: N grounded / M discarded>
+- **PM responses:** <placeholder: per attack — mitigate | accept risk | reject, with the reason>
+- **Changed the outcome?** <placeholder: yes | no — versus what the PM would have decided alone>
+
+---
+
+## Appendix — member positions
+
+<!-- guidance: The audit trail: each member's Step 2 position and Step 3 cross-examination, and the
+     devils-advocate's full attack. Wrap long entries in <details>. -->
+
+### de
+
+### da
+
+### code-reviewer
+
+### devils-advocate

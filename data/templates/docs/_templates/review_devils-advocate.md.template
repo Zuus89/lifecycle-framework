@@ -12,7 +12,7 @@ updated: <placeholder: YYYY-MM-DD>
 tags: []
 reviewer: devils-advocate
 task_number: <placeholder: integer>
-verdict: mostly_grounded_dissent
+verdict: <placeholder: attack | mostly_grounded_dissent | mostly_speculative>
 high_count: 0
 medium_count: 0
 ---
@@ -22,61 +22,52 @@ medium_count: 0
 # Devil's-Advocate Attack — <placeholder: ticket id> / Task <placeholder: NN>
 
 <!-- guidance: File goes in docs/claude_tasks/reviews/YYYY-MM-DD_NN_devils-advocate_review.md.
-     The devils-advocate (formerly "loki") stress-tests REASONING, not code. It fires at
-     Step 5 in parallel with the DE review and is a mandatory participant on every Council.
-     Read-only. NEVER proposes solutions, NEVER implements, NEVER approves.
-     GROUNDED-DISSENT PROTOCOL: every objection MUST cite evidence — file:line, a data row,
-     a project_chronicle.md incident, an architecture principle, a hard rule, or a chronicle
-     problem — or it is discarded. Speak in attack mode ("this WILL fail because…"), not hedged.
-     Verdict enum: attack | mostly_grounded_dissent | mostly_speculative. -->
+     The devils-advocate attacks REASONING, not code: read-only, never proposes solutions, never approves.
+     GROUNDED-DISSENT PROTOCOL: every attack under "Grounded attacks" cites evidence — file:line, a query and
+     its result, a chronicle entry, a hard rule, a strategy principle. Anything ungrounded goes to "Speculation
+     (quarantined)" or is discarded. The verdict semantics live in the devils-advocate agent definition.
+     high_count / medium_count = grounded attacks by confidence. -->
 
-> Attacker: devils-advocate (formerly loki)
-> Date: <placeholder: YYYY-MM-DD>
-> Target: `docs/claude_tasks/<NN>_<slug>.md`
-> Verdict: <placeholder: ATTACK | MOSTLY_GROUNDED_DISSENT | MOSTLY_SPECULATIVE>
+> **Attacker:** devils-advocate
+> **Date:** <placeholder: YYYY-MM-DD>
+> **Target:** `docs/claude_tasks/NN_slug.md` <placeholder: or the council proposal / decision attacked>
+> **Verdict:** <placeholder: attack | mostly_grounded_dissent | mostly_speculative>
 
 ---
 
-## Attack summary
+## Grounded attacks
 
-<!-- guidance: 2-3 sentences on the most dangerous weaknesses in the spec / reasoning. -->
+<!-- guidance: Ranked, most dangerous first; [A#] is the attack-checklist dimension. Implication = the
+     consequence, never the fix. Healthy range: 1–3 per non-trivial spec. -->
 
----
+### Attack 1 — [A<placeholder: dimension>] <placeholder: short title>
 
-## Grounded attacks (evidence-based, ranked)
-
-<!-- guidance: Ranked, most dangerous first. Each attack MUST cite specific evidence
-     (a file read, a past incident, an architecture principle, a hard rule). An attack
-     without evidence is discarded — do not list it.
-     Format:
-       **Attack N — Title**
-       Evidence: (what was read to ground this — file:line / project_chronicle.md / rule)
-       Risk: (the failure mode this causes)
-       Severity: High | Medium | Low -->
-
-### Attack 1 — <placeholder>
-
-**Evidence:** <placeholder>
-**Risk:** <placeholder>
-**Severity:** <placeholder>
+**Claim:** <placeholder: one sentence stating what will fail>
+**Evidence:** <placeholder: citation>
+**Implication:** <placeholder: what breaks and how badly — not how to fix it>
+**Confidence:** <placeholder: high | medium | low>
 
 ---
 
-## Cheaper alternatives considered
+## Speculation (quarantined)
 
-<!-- guidance: NOT solutions to implement — the devils-advocate does not design. List only
-     where the spec failed to justify its approach over a cheaper/simpler path, grounded
-     in evidence. The PM decides what to do with these at Step 6. -->
+<!-- guidance: Concerns that could not be grounded but are worth recording. Non-binding — the PM may dismiss
+     them without rebuttal. If empty, write "None." -->
+
+- <placeholder>
 
 ---
 
-## Verdict
+## No objection found in
 
-<!-- guidance:
-     ATTACK = enough grounded attacks to warrant spec revision before implementation.
-     MOSTLY_GROUNDED_DISSENT = significant grounded issues, but implementation can proceed with caution.
-     MOSTLY_SPECULATIVE = attacks could not be grounded; proceed. -->
+<!-- guidance: Dimensions examined where nothing grounded turned up — it tells the PM where the proposal is
+     solid, not only where it is weak. -->
 
-**Verdict: <placeholder>**
+- <placeholder: [A1] Unstated assumptions — checked against …>
 
-Rationale: <placeholder>
+---
+
+## Confidence note
+
+<!-- guidance: 1–2 sentences on the attack set as a whole. If the proposal is genuinely robust, say "No grounded
+     objections found across all attack dimensions." -->

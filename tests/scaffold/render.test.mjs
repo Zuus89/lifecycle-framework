@@ -43,16 +43,24 @@ test("markdown templates with frontmatter parse as YAML (docs/_templates excepte
   }
 });
 
-test("docs/_templates ship the ten governed document shapes, each with the sentinel header", () => {
+test("docs/_templates ship the eleven governed document shapes, each with the sentinel header", () => {
   const templates = files.filter((f) => f.out.startsWith("docs/_templates/") && f.out.endsWith(".md"));
   assert.deepEqual(templates.map((f) => f.out.replace("docs/_templates/", "")).sort(), [
-    "alpha_test.md", "council.md", "handoff.md", "kb_article.md", "report.md",
+    "alpha_test.md", "analysis.md", "council.md", "handoff.md", "kb_article.md", "report.md",
     "review_code-reviewer.md", "review_da.md", "review_de.md", "review_devils-advocate.md", "spec.md",
   ]);
   for (const f of templates) {
     assert.ok(f.content.startsWith("---\n"), `${f.src} must start with frontmatter`);
     assert.ok(f.content.includes("DELETE THIS HEADER BEFORE PUBLISHING"), `${f.src} must carry the sentinel R11 looks for`);
   }
+});
+
+test("the scaffold ships the nine governance rules", () => {
+  const rules = files.filter((f) => f.out.startsWith(".claude/rules/")).map((f) => f.out.replace(".claude/rules/", "")).sort();
+  assert.deepEqual(rules, [
+    "code-style.md", "dependency-governance.md", "frontmatter.md", "git-workflow.md", "mcp-usage.md",
+    "search-first.md", "security.md", "teammate.md", "testing.md",
+  ]);
 });
 
 test("the GitHub workflow template is valid YAML with the two jobs it documents", () => {

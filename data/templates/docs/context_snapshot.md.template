@@ -42,5 +42,5 @@ tags: [snapshot]
 ## How to run things (environment notes)
 
 - Operating contract: `CLAUDE.md`. Route: `TODO.md`. Decision history: `docs/project_chronicle.md`.
-- Per-project memory: the corpus itself — `docs/project_chronicle.md` + this snapshot + `docs/knowledge_base/` (topic articles) + `docs/INDEX.md`. Recall = read those; record = write back via `/close-task` (the kb-curator folds durable knowledge into the KB at every close). (If the project enabled basic-memory, you may also use its write_note/search_notes/build_context tools — but the corpus remains the default source of truth.)
+- Per-project memory: the corpus itself — `docs/project_chronicle.md` + this snapshot + `docs/knowledge_base/` (topic articles) + `docs/INDEX.md`. Recall = read those; record = write back via `/close-task` (the kb-curator folds durable knowledge into the KB at every close).
 - <placeholder: auth steps / env gotchas the next session needs — never paste secrets>

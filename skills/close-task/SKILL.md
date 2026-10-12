@@ -102,9 +102,6 @@ anything derivable from code or `git log`; secrets, tokens, hostnames, or infras
 The activity log is the audit trail; the chronicle + snapshot + report + KB articles are the distilled knowledge —
 keep them distinct.
 
-(If the project enabled basic-memory, you may also use its write_note/search_notes/build_context tools — but the
-corpus remains the default source of truth.)
-
 ### Knowledge-base curation — kb-curator (ALL variants, including Transitory)
 
 Read `agents.kb_curator` from `.claude/settings.json` (absent block/key = **enabled**, the default). If enabled,

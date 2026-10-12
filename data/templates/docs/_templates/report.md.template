@@ -62,22 +62,22 @@ deployed: false
 
 ## Self-review confirmation
 
-<!-- guidance: This is the DE self-review checklist (the first of the three review layers).
-     Keep the rows identical to the checklist in the de agent definition. -->
+<!-- guidance: The DE self-review checklist — the first of the three review layers. The rows are the checklist
+     in the de agent definition, identical (the plugin's consistency test enforces it); the details live there. -->
 
 | # | Check | Status |
 |---|-------|--------|
-| 1 | Function / interface signatures match callers | check |
-| 2 | Config values not hardcoded (no credentials, hosts, ids) | check |
-| 3 | No security vulnerabilities (injection, secret leakage, missing validation) | check |
-| 4 | Error handling on all external calls | check |
-| 5 | No tokens / secrets in code | check |
-| 6 | No destructive operations without an approval path | check |
-| 7 | Logging follows project conventions | check |
-| 8 | No stale comments or dead code | check |
-| 9 | Tests added / updated where the change warrants them | check |
-| 10 | Build and tests pass locally | check |
-| 11 | The spec's §8 validation checks all pass | check |
+| 1 | Function signatures match callers | check |
+| 2 | No hardcoded config | check |
+| 3 | No security vulnerabilities | check |
+| 4 | Error handling on every external call | check |
+| 5 | No secrets in code | check |
+| 6 | No unauthorized destructive operations | check |
+| 7 | No pre-commitment to an open decision | check |
+| 8 | Logging follows project conventions | check |
+| 9 | No stale comments or dead code | check |
+| 10 | Tests cover the changed behavior | check |
+| 11 | The spec's validation checks pass | check |
 
 [All 11 points verified — <placeholder: YYYY-MM-DD>]
 
@@ -85,14 +85,6 @@ deployed: false
 
 ## Lessons learned
 
-<!-- guidance: Schema surprises, platform quirks, patterns discovered. -->
-
----
-
-## Corpus record
-
-<!-- guidance: This report itself is the corpus record — it is the persistent knowledge for this task.
-     On /close-task it propagates into project_chronicle.md and context_snapshot.md, and is indexed in
-     docs/INDEX.md + docs/index.json. Note here any decisions or lessons that belong in the chronicle.
-     (If the project enabled basic-memory, you may also use its write_note/search_notes/build_context
-     tools — but the corpus remains the default source of truth.) -->
+<!-- guidance: This report is the corpus record for the task: /close-task rolls it into project_chronicle.md
+     and the kb-curator folds durable knowledge into docs/knowledge_base/. Record schema or interface
+     corrections, platform quirks, new patterns — anything future tasks should know. If none: "No new lessons." -->

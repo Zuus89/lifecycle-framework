@@ -43,17 +43,26 @@ test("verdict vocabularies: rules, templates, skills and agents equal corpus.con
     sameSet(tokens(cell[1]), VERDICT_ENUMS[reviewer], `frontmatter.md.template row ${reviewer}`);
   }
 
-  // agents/code-reviewer.md — the inline frontmatter example
-  const cr = read(join(agentsDir, "code-reviewer.md")).match(/^verdict: (.+)$/m);
-  assert.ok(cr, "code-reviewer.md has no `verdict:` example line");
-  sameSet(tokens(cr[1]), VERDICT_ENUMS["code-reviewer"], "agents/code-reviewer.md");
-
-  // docs/_templates/review_code-reviewer.md — placeholder + guidance
-  const tpl = read(join(TEMPLATES, "docs", "_templates", "review_code-reviewer.md.template"));
-  for (const m of tpl.matchAll(/(?:verdict:|Verdict enum[^:]*:|\*\*Verdict:\*\*) <?(?:placeholder: )?([a-z_ |]+)>?/g)) {
-    sameSet(tokens(m[1]), VERDICT_ENUMS["code-reviewer"], "review_code-reviewer.md.template");
+  // The four review templates and the reviewing agents: every line that talks about a verdict and lists an enum
+  // run (`a | b | c`) lists exactly that role's vocabulary, lowercase, as the validator enforces it.
+  const enumRuns = (lines) => lines.flatMap((l) => [...l.matchAll(/[a-z_]+(?:\s*\|\s*[a-z_]+)+/g)].map((m) => m[0]));
+  const reviewSources = {
+    de: ["docs/_templates/review_de.md.template", "agents/de.md"],
+    da: ["docs/_templates/review_da.md.template"],
+    "code-reviewer": ["docs/_templates/review_code-reviewer.md.template"],
+    "devils-advocate": ["docs/_templates/review_devils-advocate.md.template", "agents/devils-advocate.md"],
+  };
+  for (const [role, files] of Object.entries(reviewSources)) {
+    for (const rel of files) {
+      const file = rel.startsWith("agents/") ? join(REPO, rel) : join(TEMPLATES, rel);
+      const verdictLines = read(file).split("\n").filter((l) => /verdict/i.test(l));
+      const runs = enumRuns(verdictLines);
+      assert.ok(runs.length >= 1, `${rel}: names no ${role} verdict vocabulary`);
+      if (rel.endsWith(".template")) assert.ok(runs.length >= 2, `${rel}: the frontmatter and the header must both list the verdict enum`);
+      for (const run of runs) sameSet(tokens(run), VERDICT_ENUMS[role], `${rel} (${role})`);
+      assert.ok(!/\b[A-Z][A-Z_]{2,}\s*\|\s*[A-Z][A-Z_]{2,}\b/.test(verdictLines.join("\n")), `${rel}: uppercase verdict vocabulary`);
+    }
   }
-  assert.ok(!/SAFE \| NON-BLOCKING/.test(tpl), "the template must not carry the old uppercase vocabulary");
 
   // skills/new-doc — the sentence that names both enums
   const nd = read(join(skillsDir, "new-doc", "SKILL.md"));
@@ -145,6 +154,106 @@ test("activity-log contract: the skill's event table ≡ corpus.config EVENTS; p
   const exampleKeys = Object.keys(JSON.parse(skill.match(/```json\n([\s\S]+?)\n```/)[1]));
   assert.deepEqual(exampleKeys, LOG_FIELDS, "the §A example line must carry exactly LOG_FIELDS, in order");
   for (const id of ["pm", "de", "da", "code-reviewer", "devils-advocate", "kb-curator", "linear-steward", "human"]) assert.ok(LOG_AGENTS.has(id), id);
+});
+
+// --- One truth per format (CRI-1156) -------------------------------------------------------------------
+
+const TEMPLATE_DIR = join(TEMPLATES, "docs", "_templates");
+const walkFiles = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkFiles(join(dir, e.name)) : [join(dir, e.name)]));
+const agentFiles = () => readdirSync(agentsDir).map((f) => join(agentsDir, f));
+const skillFiles = () => readdirSync(skillsDir).map((d) => join(skillsDir, d, "SKILL.md"));
+const shippedText = () => [...agentFiles(), ...skillFiles(), ...walkFiles(TEMPLATES), join(REPO, "FRAMEWORK.md"), join(REPO, "README.md")];
+
+/** /new-doc's destination table — the single convention for where each governed document lives. */
+function newDocTable() {
+  const text = read(join(skillsDir, "new-doc", "SKILL.md"));
+  return [...text.matchAll(/^\| `([a-z_-]+)` \| `docs\/_templates\/([a-z_-]+\.md)` \| `([^`]+)` \|/gm)]
+    .map(([, type, template, destination]) => ({ type, template, destination }));
+}
+
+/** A destination pattern as a regex: its placeholders match themselves or concrete example values. */
+const destinationRe = (pattern) => new RegExp(`^${pattern
+  .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  .replace(/YYYY-MM-DD/g, "(?:YYYY-MM-DD|\\d{4}-\\d{2}-\\d{2})")
+  .replace(/NN/g, "(?:NN|\\d{2,})")
+  .replace(/slug/g, "[a-z0-9][a-z0-9_-]*")}$`);
+
+test("/new-doc's table and docs/_templates/ list the same document types", () => {
+  const table = newDocTable();
+  const templates = readdirSync(TEMPLATE_DIR).map((f) => f.replace(/\.template$/, "")).sort();
+  assert.deepEqual(table.map((r) => r.template).sort(), templates, "every template has a /new-doc row and every row a template");
+  for (const r of table) assert.equal(r.template, `${r.type}.md`, `${r.type}: the template is named after the type`);
+  const skill = read(join(skillsDir, "new-doc", "SKILL.md"));
+  const step1 = skill.match(/^ {3}`(spec \|[^`]+)`/m);
+  assert.ok(step1, "/new-doc Step 1 must list the types");
+  assert.deepEqual(tokens(step1[1]).sort(), table.map((r) => r.type).sort(), "/new-doc Step 1 lists exactly the table's types");
+  assert.equal(Number(skill.match(/one template per type \((\d+) templates\)/)[1]), templates.length, "/new-doc states the template count");
+});
+
+test("every docs/claude_tasks/ path named anywhere is a /new-doc destination", () => {
+  const allowed = [...newDocTable().map((r) => r.destination), "docs/claude_tasks/archive/NN_slug.md" /* /close-task's archive move */].map(destinationRe);
+  for (const file of shippedText()) {
+    for (const [mention] of read(file).matchAll(/docs\/claude_tasks\/[A-Za-z0-9<>{}_./-]*?\.md\b/g)) {
+      const path = mention.replace(/[<>{}]/g, "");
+      assert.ok(allowed.some((re) => re.test(path)), `${file}: \`${mention}\` is not a /new-doc destination`);
+    }
+  }
+});
+
+test("no agent or skill restates the structure of a templated document", () => {
+  for (const file of [...agentFiles(), ...skillFiles()]) {
+    for (const [, block] of read(file).matchAll(/```[a-z]*\n([\s\S]*?)```/g)) {
+      assert.ok(!/^type: (spec|alpha_test|report|review|council|handoff)\s*$/m.test(block) && !/^reviewer: /m.test(block),
+        `${file}: a fenced block restates a templated document's frontmatter — point to the template instead`);
+      assert.ok(!/^# (Task Report|Analysis Report|Data Analysis|Council Verdict|Devil's|Code Review|Alpha-Test Execution)/m.test(block),
+        `${file}: a fenced block restates a templated document's body — point to the template instead`);
+    }
+  }
+});
+
+test("templates carry the sections their protocols depend on", () => {
+  const headings = (file) => new Set([...read(join(TEMPLATE_DIR, file)).matchAll(/^## (.+)$/gm)].map((m) => m[1].trim()));
+  const required = {
+    "council.md.template": ["Question", "Decision", "Unresolved questions", "Accepted risks", "Reopen criteria", "Human verdict (Step 7)", "Council meta"],
+    "review_devils-advocate.md.template": ["Grounded attacks", "Speculation (quarantined)", "No objection found in", "Confidence note"],
+    "review_code-reviewer.md.template": ["Verdict", "CRITICAL", "WARNING", "SUGGESTION", "SCHEMA", "Summary"],
+    "alpha_test.md.template": ["Derivation rule", "Ground truth cases", "Pass/fail criteria", "Seal record", "Execution log (Step 8)", "Post-seal discoveries"],
+    "analysis.md.template": ["Summary", "Methodology", "Findings", "Recommendations"],
+    "report.md.template": ["Summary", "Spec deviations", "Validation results", "Self-review confirmation", "Lessons learned"],
+  };
+  for (const [file, list] of Object.entries(required)) {
+    for (const h of list) assert.ok(headings(file).has(h), `${file} lacks "## ${h}"`);
+  }
+});
+
+test("the DE self-review checklist and the report template's self-review table carry the same checks", () => {
+  const rows = (text) => [...text.matchAll(/^\| (\d+) \| ([^|]+?) \|/gm)].map((m) => `${m[1]}. ${m[2].trim()}`);
+  const de = read(join(agentsDir, "de.md"));
+  const deRows = rows(de.slice(de.indexOf("## 3. Self-review"), de.indexOf("## 4.")));
+  const tpl = read(join(TEMPLATE_DIR, "report.md.template"));
+  const tplSection = tpl.slice(tpl.indexOf("## Self-review confirmation"), tpl.indexOf("## Lessons learned"));
+  assert.ok(deRows.length >= 10, `expected the DE checklist, found ${deRows.length} rows`);
+  assert.deepEqual(rows(tplSection), deRows);
+  assert.match(tplSection, new RegExp(`All ${deRows.length} points verified`));
+});
+
+test("teammate protocol: one rule, pointed to by every teammate agent, restated by none", () => {
+  assert.ok(existsSync(join(TEMPLATES, ".claude", "rules", "teammate.md.template")));
+  for (const name of ["de", "da", "data-reviewer", "devils-advocate", "code-reviewer"]) {
+    const text = read(join(agentsDir, `${name}.md`));
+    assert.match(text, /\.claude\/rules\/teammate\.md/, `${name}.md must point to the teammate rule`);
+    assert.ok(!/^## (Teammate Protocol|Session Start Checklist|Record Findings in the Corpus|Reference Files|Reference)\s*$/m.test(text),
+      `${name}.md still restates a section the teammate rule owns`);
+  }
+});
+
+test("the basic-memory caveat lives once — in the mcp-usage rule", () => {
+  for (const file of shippedText()) {
+    assert.ok(!/If the project enabled basic-memory/.test(read(file)), `${file} restates the basic-memory caveat`);
+  }
+  const mcp = read(join(TEMPLATES, ".claude", "rules", "mcp-usage.md.template"));
+  assert.match(mcp, /### Opt-in: the `basic-memory` MCP/);
+  assert.match(mcp, /the corpus remains the default and the source of\s+truth/);
 });
 
 test("/log-tracker is gone: no skill directory and no mention left in the shipped files", () => {

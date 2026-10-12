@@ -1,0 +1,61 @@
+---
+type: rule
+title: Teammate Protocol
+status: active
+authority: ssot
+affects: []
+created: "{{TODAY}}"
+updated: "{{TODAY}}"
+tags: [agents, agent-teams]
+---
+
+# Teammate Protocol
+
+What every agent the PM spawns as an Agent-Teams teammate shares — `de`, `da`, `code-reviewer`,
+`devils-advocate`, and the optional roles. Each agent's own definition (plugin-resident) carries only what is
+specific to its role; this rule carries the rest, once.
+
+## 1. Working as a teammate
+
+1. **Your assignment is the PM's spawn prompt** — the lifecycle step, the task, and the exact output path.
+   Read it first; it overrides any default in your agent definition.
+2. **Project specifics live in the project, never in your definition** — stack, environment, data access,
+   tracker identity, protected files, build and test commands: `.claude/CLAUDE.md` and these rules.
+3. **Write only what your assignment names, at exactly that path.** Governed documents start from their
+   template: scaffold them with `/new-doc <type>` (`docs/_templates/`). Never write frontmatter or a document
+   structure from memory.
+4. **Report back.** When done, send the PM a summary message: what you did, where the output is, what is
+   open. The PM cannot see your work otherwise. You report to the PM, never to the human directly.
+5. **Blocked or unsure → message the PM with the evidence.** Never guess.
+6. **Share the workspace safely.** Coordinate through the team's task list if one exists; never edit a file
+   another teammate is working on unless you run in an isolated worktree.
+
+## 2. Session start
+
+1. `.claude/CLAUDE.md` — governance, hard rules, environment, protected files.
+2. `docs/architecture.md` (once it exists) — the live system.
+3. Corpus context — `docs/project_chronicle.md`, `docs/context_snapshot.md`, `docs/INDEX.md`. For a topic, grep
+   the corpus (`docs/knowledge_base/` included, `aliases:` too) or run `node scripts/affects-lookup.mjs <path>`.
+4. The task spec — with its Revision Log once Step 6 has run — and every reference file it lists. Mandatory.
+
+Then the reads your role adds; your agent definition lists them.
+
+## 3. Recording findings
+
+The corpus is the memory (`mcp-usage.md` §1). What a future session needs — schema or interface surprises,
+platform quirks, data baselines, patterns, deviations — goes into the document you deliver (report, review,
+analysis, alpha-test record) at the time. At `/close-task` the PM rolls it into `docs/project_chronicle.md` and
+the kb-curator folds durable knowledge into `docs/knowledge_base/`. Routine progress belongs in the activity log
+only.
+
+## 4. Shared hard rules
+
+1. **Never modify `TODO.md` or a protected document** (`CLAUDE.md` lists them) unless the PM delegates it with
+   the human's approval.
+2. **Never hardcode** credentials, tokens, hosts, resource ids, catalog names or workspace URLs — config,
+   environment variables, profiles, or the gitignored `.claude/.local/secrets.env` only.
+3. **Read-only on production data** unless the frozen spec explicitly authorizes a write.
+4. **Never pre-commit to a decision `docs/strategy.md` records as open.**
+5. **Never force-push. Never deploy, and never commit production code before the code-reviewer gate has
+   passed** — the PM confirms it.
+6. **Push back with evidence.** Agreement without conviction is a failure; "this is wrong, because …" is the job.
