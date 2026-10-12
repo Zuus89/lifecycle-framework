@@ -175,8 +175,8 @@ Use the pre-flight git context.
      run init **inside that clone**; offer the exact `git clone <url>` + `cd` to run first, then re-invoke init.
   2. **`git init` a new repo here** + optionally `git remote add origin <url>` (and `gh repo create` if `gh` is
      authenticated).
-  3. **Proceed without git** — discouraged: husky hooks, the INDEX-freshness gate, post-commit logging, and the
-     `lint-frontmatter` CI all need a git repo. Warn explicitly.
+  3. **Proceed without git** — discouraged: the husky pre-commit hook, the INDEX build (it reads git-tracked
+     files) and the `lint-frontmatter` CI all need a git repo. Warn explicitly.
 - **Git identity:** if `user.name`/`user.email` are unset, set them (ask) — commits and the activity log need them.
 - **Pick the right git account — the user may have several connected.** Parse the **remote owner** from the origin
   URL (`github.com/<owner>/…` or `git@host:<owner>/…`) and compare against the accounts from pre-flight
@@ -354,8 +354,8 @@ root**), `TODO.md` (protected), `.gitignore`, `.mcp.json` (expected contents per
 `docs/{strategy.md,architecture.md}` (protected), `project_chronicle.md` (append-only, init entry `{{TODAY}}`),
 `context_snapshot.md`, empty `activity_log.jsonl`, `_templates/*`, `claude_tasks/{alpha_tests,reviews,reports,council,archive,handoffs}`,
 `audits/`, `knowledge_base/`, INDEX (autogen in §6); `.claude/{settings.json (committed, has Agent Teams env +
-connections), .local/secrets.env (gitignored), rules/*}` (`.claude/log_session` has no template — the log skills and
-the post-commit hook create it at runtime, gitignored); `.husky/{pre-commit,post-commit,pre-push}`;
+connections), .local/secrets.env (gitignored), rules/*}` (`.claude/log_session` has no template — `/log-activity`
+creates it at runtime, gitignored); `.husky/pre-commit` (the one hook — validates the staged docs);
 `.github/workflows/lint-frontmatter.yml` (+ stack optionals, **alongside** any pre-existing CI); `scripts/*.mjs` +
 `corpus.config.mjs` (scaffolded into the repo — husky/CI call them by relative path; `${CLAUDE_PLUGIN_ROOT}` does not
 resolve there). If a template is absent, report it — don't fabricate.
@@ -393,8 +393,9 @@ From the project root (print the exact command for the user if a step is blocked
    already-cloned-repo case) → **merge, do not overwrite**: add the governance `devDependencies` (`js-yaml`, `husky`)
    and `scripts` (`lint:frontmatter`, `build:index`, and `prepare: "husky"` if absent) into the project's existing
    `package.json`, leaving its own fields untouched. Then `npm install` (installs husky + js-yaml) and commit the
-   resulting `package-lock.json` (CI uses `npm ci`, which requires the lockfile).
-3. **husky.** `npx husky install` (or `npm run prepare`); confirm `.husky/` hooks present + executable (`chmod +x`).
+   resulting `package-lock.json` (reproducible local installs; CI installs only js-yaml and needs no lockfile).
+3. **husky.** `npx husky install` (or `npm run prepare`); confirm `.husky/pre-commit` is present + executable
+   (`chmod +x`). On a project scaffolded before plugin 0.3, §7 "Retired files" offers to remove the old hooks.
 4. **Agent Teams flag.** Verify `.claude/settings.json` `env` has `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"` — the
    **hard prerequisite** (a plugin can't set it). If missing, add it. Without it, orchestration collapses to one agent.
 
@@ -404,8 +405,8 @@ From the project root (print the exact command for the user if a step is blocked
 
 1. **Stage, then build INDEX.** `build-index.mjs` reads **git-tracked** files, so an unstaged scaffold indexes 0
    files. First `git add -A` (stage the scaffolded corpus), then `node scripts/build-index.mjs` → `docs/INDEX.md` +
-   `docs/index.json`. **Commit order matters** — the `pre-push` hook rebuilds the INDEX and blocks on drift — so the
-   first commit should be: `git add -A && npm run build:index && git add docs/INDEX.md docs/index.json && git commit`.
+   `docs/index.json`. **Commit order matters** — CI rebuilds the INDEX on every pull request and fails on drift — so
+   the first commit should be: `git add -A && npm run build:index && git add docs/INDEX.md docs/index.json && git commit`.
    (Init does not commit for the user unless asked; tell them this is the first commit to make.)
 2. **Seed KB** (if §B had docs): run `/audit-corpus`.
 3. **Verify connections:**
@@ -466,6 +467,10 @@ at scaffold time:
 - **Pre-existing CI** (`.github/workflows/`): add framework workflows alongside; never delete the user's.
 - **Everything else** (config, rules, scripts, hooks, `CLAUDE.md`): update mode → prompt before overwriting a
   differing file; fresh scaffold → write freely.
+- **Retired files** (update mode only): files earlier plugin versions scaffolded and this one no longer ships —
+  `.husky/post-commit`, `.husky/pre-push`, `scripts/log-commit-activity.mjs` (retired in 0.3: `git log` is the record
+  of commits; INDEX freshness is checked by CI). List the ones present and offer to `git rm` them; never delete
+  without the user's yes.
 - **Sealed alpha tests** (`docs/claude_tasks/alpha_tests/`): never touch — the FREEZE RULE.
 
 ---

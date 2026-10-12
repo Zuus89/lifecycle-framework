@@ -48,16 +48,24 @@ The corpus engine lives in the **project repo** (`scripts/*.mjs` + `corpus.confi
      A modification dated **after** `sealed_date` that is **not** a sanctioned status transition (`sealed` → `passed`/`failed` at lifecycle Step 8) is a **High** finding — the alpha test was edited after it was frozen, which defeats the bias-free verdict. Report the file, the `sealed_date`, and the offending commit date.
    - **Mandatory-read paths:** every file referenced by the session-start protocol in `.claude/CLAUDE.md` (legacy scaffolds: the repo-root `CLAUDE.md`) must exist. Treat a path that `CLAUDE.md` itself marks as expected-absent (e.g. `docs/architecture.md` before it is first authored) as not-a-finding.
    - **Staleness:** `updated:` older than 60 days on docs with `status: active | living | in_progress`.
-   - **Orphan specs:** a spec with `status: done` and no matching report in `docs/claude_tasks/reports/` nor any review in `docs/claude_tasks/reviews/` for its `task_number`.
+   - **Orphan specs:** a tier-M or L spec with `status: done` and no matching report in `docs/claude_tasks/reports/` nor any review in `docs/claude_tasks/reviews/` for its `task_number` (tier S has no report by design).
    - **Activity silence:** a spec with `status: in_progress` and no line for its ticket / `task_number` in `docs/activity_log.jsonl` within the last 14 days (ignore `session: "backfill"` lines).
    - **`task_number` collisions:** two specs — or two alpha tests — sharing the same `NN`.
+   - **Tier evidence** (specs with `status: done`; a spec without `tier:` counts as M):
+     - **S** whose `affects:` names `data.`, `migration.` or `dep.` → **High**: the change was outside tier S (data,
+       schema or a dependency) and skipped the M cycle.
+     - **S** whose `affects:` names code (`fn.`, `api.`, `ui.`, `auth.`, `job.`, `module.`, `interface.`) with no
+       `review` carrying `reviewer: code-reviewer` for the same `ticket` → **High**: production code skipped the gate.
+     - **M or L** with neither an alpha test for its `task_number` nor `alpha test: N/A — no behavioral change` in
+       the spec → **Medium**.
+     - **L** with no council doc for its `ticket` → **Medium**.
 
 3. **Triage findings by severity:**
 
    | Tier | Findings | Action |
    |------|----------|--------|
-   | **High** | Frontmatter parse errors · missing required fields · dangling `depends_on:`/`affects:`/`supersedes:` refs · **sealed alpha test modified after `sealed_date`** · broken mandatory-read paths | **Block:** fix before committing the index. Sealed-test violations escalate to the human — never silently "fix" the test (see Hard rules). |
-   | **Medium** | Stale `updated:` (>60d on active docs) · orphan specs (no report/review chain) · spec `in_progress` with no activity-log line in 14d | Report + propose fixes; apply only the mechanical ones (a date bump requires the doc to actually be re-verified, not blind-bumped). |
+   | **High** | Frontmatter parse errors · missing required fields · dangling `depends_on:`/`affects:`/`supersedes:` refs · **sealed alpha test modified after `sealed_date`** · broken mandatory-read paths · **a tier-S task that touched data/schema/dependencies or skipped the code-reviewer gate** | **Block:** fix before committing the index. Sealed-test and tier violations escalate to the human — never silently "fix" the test or the tier (see Hard rules). |
+   | **Medium** | Stale `updated:` (>60d on active docs) · orphan specs (no report/review chain) · spec `in_progress` with no activity-log line in 14d · an M/L spec with no alpha test or N/A declaration · an L spec with no council doc | Report + propose fixes; apply only the mechanical ones (a date bump requires the doc to actually be re-verified, not blind-bumped). |
    | **Low** | Empty `tags: []` · `task_number` collisions | Report; fix opportunistically. |
 
    For files needing human judgment (wrong `type`, wrong `status`, ambiguous `authority`): present them to the user for a decision — do not guess.
@@ -93,7 +101,7 @@ If the project wants a recurring audit, register it once via the `/schedule` ski
 /schedule create --cron "0 13 * * *" --invoke "/audit-corpus" --commit-output --label "<project>-corpus-audit"
 ```
 
-The drift window between scheduled runs is the cron interval; real-time freshness is already enforced by the pre-push git hook and the `lint-frontmatter` CI gate (both rebuild the INDEX and block on drift).
+The drift window between scheduled runs is the cron interval; freshness is already enforced by the `lint-frontmatter` CI gate on every pull request (it rebuilds the INDEX and fails on drift) and by `/close-task`, which rebuilds the INDEX whenever frontmatter changed.
 
 ---
 

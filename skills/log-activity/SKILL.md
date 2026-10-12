@@ -1,6 +1,6 @@
 ---
 name: log-activity
-description: "The lifecycle's single logger. After every lifecycle step, append one machine-readable record to docs/activity_log.jsonl. At milestones add --tracker: the same call also posts the mirrored comment on the active tracker issue (Linear or Jira), writes the SAME line cross-referenced by the comment id, and applies the step's state markers (blocker, type:*). Append-only; never moves a ticket to Done (/close-task owns that). The machine copy of the contract — LOG_FIELDS, EVENTS, LOG_AGENTS — lives in scripts/corpus.config.mjs; this file documents it. committed lines are written by the .husky/post-commit hook."
+description: "The lifecycle's single logger. After every lifecycle step, append one machine-readable record to docs/activity_log.jsonl. At milestones add --tracker: the same call also posts the mirrored comment on the active tracker issue (Linear or Jira), writes the SAME line cross-referenced by the comment id, and applies the step's state markers (blocker, type:*). Append-only; never moves a ticket to Done (/close-task owns that). The machine copy of the contract — LOG_FIELDS, EVENTS, LOG_AGENTS — lives in scripts/corpus.config.mjs; this file documents it. Commits are not logged — git log is their record."
 allowed-tools: Bash, Read, Write, mcp__linear, mcp__atlassian
 ---
 
@@ -15,8 +15,8 @@ Append one JSON Lines record to `docs/activity_log.jsonl`. Two modes, one line s
 
 The contract has one machine copy, `scripts/corpus.config.mjs`: `LOG_FIELDS` (the line shape), `EVENTS` (the
 vocabulary, each event with its step), `LOG_AGENTS` (who may author a line). This file documents that copy and
-the plugin's consistency test keeps the two equal. The `.husky/post-commit` hook writes `committed` lines from
-the same `LOG_FIELDS` — never hand-log routine commits. There is no other writer.
+the plugin's consistency test keeps the two equal. This skill is the only writer. Commits are not logged:
+`git log` is the record of commits.
 
 **What this logger never does:** move a ticket to Done. `/close-task` owns that transition and performs it
 exactly once. `--tracker` posts comments and state markers only. Reserve `--tracker` for milestones so the
@@ -56,13 +56,13 @@ Field rules:
 - `branch` — current git branch verbatim (`git branch --show-current`).
 - `pr_url` — string, or `null` if no PR. Resolve via `gh pr view --json url -q .url`; trap a non-zero exit → `null`.
 - `step` — integer `1`–`10` (the lifecycle step the event closes), or `null`. Taken from `EVENTS` **at invocation
-  time** — never reverse-parsed from a comment. `null` for events with no fixed step and for hook lines.
+  time** — never reverse-parsed from a comment. `null` for events with no fixed step.
 - `agent` — the role that authored the step: one of `LOG_AGENTS` (`pm`, `de`, `da`, `code-reviewer`,
   `devils-advocate`, the optional roles `corpus-steward`, `kb-curator`, `data-reviewer`, `scout`,
-  `dead-code-cleanup`, `linear-steward`, or `human`), or `null` for machine-originated (hook) lines. The
-  role-descriptive id, never a display name or a `CC.` tag.
+  `dead-code-cleanup`, `linear-steward`, or `human`) — the role-descriptive id, never a display name or a `CC.`
+  tag. (`null` survives only on historical lines.)
 - `model` — the model id the authoring agent runs on (its frontmatter pin, or the session model for the PM), or
-  `null` when unknown or machine-originated.
+  `null` when unknown.
 - `event` — a tag from the §B vocabulary (`EVENTS`). New tags are added to `corpus.config.mjs` first, then here.
 - `summary` — 1–3 plain sentences. The human record. Written, not boilerplate. In the project's documentation
   language (English by default; see `CLAUDE.md`).
@@ -86,7 +86,6 @@ Canonical, **closed list** mapped to the 10-step lifecycle (the machine copy is 
 | `alpha-test-sealed` | Step 6 — alpha test frozen (`status: sealed`, `sealed_date` set) | 6 |
 | `implementation-started` | Step 7 — implementation begins | 7 |
 | `implementation-complete` | Step 7 — implementation done, self-review passed | 7 |
-| `committed` | code committed | 7 (manual) / **`null` (post-commit hook)** |
 | `code-review-complete` | Step 7 — code-reviewer gate done (verdict in summary) | 7 |
 | `alpha-test-executed` | Step 8 — the FROZEN alpha test was run | 8 |
 | `tests-passed` | Step 8 — alpha test / validations passed (binary) | 8 |
@@ -102,9 +101,6 @@ Canonical, **closed list** mapped to the 10-step lifecycle (the machine copy is 
 | `handshake-in` | Machine transfer unpacked by `/handshake in` (summary carries the source machine, snapshot regenerated yes/no, and the environment-verification result) | `null` |
 | `council-convened` | A `/council` deliberation was convened | `null` |
 
-`committed` is `step: 7` for a **manual** invocation; the post-commit hook writes `step: null` because a commit's
-lifecycle step is not determinable in-hook.
-
 `kb-curated` is `step: 10` in a Full or Research close and `null` at a Transitory boundary. The **PM invokes** the
 write (the log is outside the kb-curator's allow-list) but the line carries `agent: "kb-curator"`. Log it only
 after every FAILED entry in the curator's filing plan is resolved, and only when ≥ 1 KB file survived; `artifacts`
@@ -112,8 +108,6 @@ after every FAILED entry in the curator's filing plan is resolved, and only when
 
 `handshake-out` / `handshake-in` are `step: null`, `agent: "pm"`. On git-remote transport `handshake-out` is
 appended **before** the final handshake commit so the line rides the push; `handshake-in` on the arriving machine.
-Known residue: the final handshake commit's own `committed` hook line never rides a push — `/handshake in` restores
-it (`git restore docs/activity_log.jsonl`; the line is reproducible from `git log`).
 
 ## §C — Session id
 

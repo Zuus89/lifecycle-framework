@@ -10,7 +10,7 @@
  *
  * Performance target: < 5s on a 300-file corpus (hard gate — exits 1 beyond it).
  *
- * Determinism contract (the pre-push hook and CI diff these artifacts, so the
+ * Determinism contract (CI diffs these artifacts on every pull request, so the
  * same source must produce the same bytes on every machine):
  *   - corpus driven by `git ls-files` (gitignored transient docs excluded)
  *   - entries sorted with locale-free string compare (readdir order is OS-dependent)
@@ -80,7 +80,7 @@ function maxSourceUpdate(entries) {
  * calls `.toString()` which emits a timezone-local human-readable form like
  * `Thu May 14 2026 02:00:00 GMT+0200 (CEST)`. Two runners in different TZs
  * (e.g. CI runs UTC, local runs elsewhere) produce different bytes for the
- * same date → INDEX drift → pre-push hook + CI failure.
+ * same date → INDEX drift → CI failure.
  */
 function formatDateField(v) {
   if (v == null) return '—';

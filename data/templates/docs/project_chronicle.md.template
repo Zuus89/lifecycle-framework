@@ -48,7 +48,7 @@ with a governed documentation corpus.
    (append-only); `activity_log.jsonl` = the machine audit trail; `TODO.md` = the
    tracker-mirrored route (protected).
 4. **Corpus governance:** frontmatter taxonomy (`type` / `status` / `authority` / `protection`),
-   templates under `docs/_templates/`, and a corpus index gated by the pre-push hook and CI.
+   templates under `docs/_templates/`, and a corpus index gated by CI on every pull request.
 
 **Rationale:** governance-first sequencing — the project must be traceable from its first
 task. Building governance later would leave early work undocumented.

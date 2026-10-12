@@ -3,19 +3,27 @@
 import { before, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { TEMPLATES, baseEnv, read, render, runNode, tmpDir, writeFile } from "../_helpers.mjs";
 
 let fx;
 const script = (name) => join(fx, "scripts", name);
+
+/** The engine as /lifecycle-init writes it into a project: scripts copied, corpus.config rendered. */
+function installEngine(dir) {
+  for (const f of ["_corpus-walk.mjs", "validate-frontmatter.mjs", "build-index.mjs", "affects-lookup.mjs"]) {
+    writeFile(join(dir, "scripts", f), read(join(TEMPLATES, "scripts", f)));
+  }
+  writeFile(join(dir, "scripts", "corpus.config.mjs"), render(read(join(TEMPLATES, "scripts", "corpus.config.mjs.template"))));
+}
 
 const SPEC = `---
 type: spec
 title: "Fixture spec"
 ticket: ABC-1
 task_number: 1
+tier: M
 status: draft
 authority: ssot
 affects: [data.sales, module.billing]
@@ -72,11 +80,7 @@ tags: []
 
 before(() => {
   fx = tmpDir("corpus");
-  // The engine as /lifecycle-init writes it: scripts copied, corpus.config rendered.
-  for (const f of ["_corpus-walk.mjs", "validate-frontmatter.mjs", "build-index.mjs", "affects-lookup.mjs", "log-commit-activity.mjs"]) {
-    writeFile(script(f), read(join(TEMPLATES, "scripts", f)));
-  }
-  writeFile(script("corpus.config.mjs"), render(read(join(TEMPLATES, "scripts", "corpus.config.mjs.template"))));
+  installEngine(fx);
   writeFile(join(fx, "docs", "claude_tasks", "01_fixture.md"), SPEC);
   writeFile(join(fx, "docs", "claude_tasks", "alpha_tests", "01_fixture.md"), ALPHA);
   writeFile(join(fx, "docs", "claude_tasks", "reviews", "2026-01-03_01_code-reviewer_review.md"), GOOD_REVIEW_2);
@@ -138,27 +142,45 @@ test("build-index: INDEX.md + index.json from the fixture, byte-stable across ru
   assert.ok(existsSync(join(fx, "docs", "index.json")));
 });
 
-test("log-commit-activity: the post-commit line is exactly LOG_FIELDS, with the ticket derived from the branch", async () => {
-  // A real (nested, throwaway) git repo: the hook reads HEAD and the branch.
-  const git = (...args) => spawnSync("git", ["-c", "user.name=fixture", "-c", "user.email=fixture@example.com", ...args], { cwd: fx, encoding: "utf8", env: baseEnv() });
-  assert.equal(git("init", "-q", "-b", "feat/ABC-7-fixture").status, 0);
-  assert.equal(git("add", "-A").status, 0);
-  assert.equal(git("commit", "-q", "-m", "feat: fixture commit").status, 0);
-  mkdirSync(join(fx, ".claude"), { recursive: true });
+test("validate-frontmatter: a spec's tier is S, M or L (R13); an active spec without one gets a warning (S2)", () => {
+  const dir = tmpDir("tiers");
+  installEngine(dir);
+  const spec = (tier, status) => SPEC.replace("tier: M\n", tier ? `tier: ${tier}\n` : "").replace("status: draft", `status: ${status}`);
+  writeFile(join(dir, "docs", "claude_tasks", "01_small.md"), spec("S", "draft"));
+  writeFile(join(dir, "docs", "claude_tasks", "02_bad.md"), spec("XL", "draft"));
+  writeFile(join(dir, "docs", "claude_tasks", "03_untiered.md"), spec(null, "in_progress"));
+  writeFile(join(dir, "docs", "claude_tasks", "archive", "04_old.md"), spec(null, "done"));
+  const r = runNode(join(dir, "scripts", "validate-frontmatter.mjs"), ["--root", dir]);
+  const out = r.stdout + r.stderr;
+  assert.equal(r.status, 1);
+  assert.match(out, /02_bad\.md: R13 — Invalid tier: "XL"\. Must be one of: S, M, L/);
+  assert.match(out, /03_untiered\.md: S2 — spec has no tier: — it runs as M/);
+  assert.doesNotMatch(out, /04_old\.md/, "a done spec from before tiers stays quiet");
+  assert.doesNotMatch(out, /01_small\.md/);
+  assert.match(r.stdout, /Hard violations: 1\b/);
+});
 
-  const r = runNode(script("log-commit-activity.mjs"), [], { cwd: fx });
-  assert.equal(r.status, 0, r.stderr);
-  const lines = readFileSync(join(fx, "docs", "activity_log.jsonl"), "utf8").trim().split("\n");
-  assert.equal(lines.length, 1);
-  const line = JSON.parse(lines[0]);
-  const { LOG_FIELDS } = await import(pathToFileURL(script("corpus.config.mjs")).href);
-  assert.deepEqual(Object.keys(line), LOG_FIELDS, "the hook writes the contract's fields, in order");
-  assert.equal(line.event, "committed");
-  assert.equal(line.ticket, "ABC-7");
-  assert.equal(line.branch, "feat/ABC-7-fixture");
-  assert.equal(line.summary, "feat: fixture commit");
-  assert.ok(line.artifacts.includes("docs/claude_tasks/01_fixture.md"));
-  for (const f of ["pr_url", "step", "agent", "model", "tracker_comment_id"]) assert.equal(line[f], null, `${f} is null on a hook line`);
-  assert.match(line.session, /^[0-9a-f]{8}$/);
-  assert.deepEqual(JSON.parse(readFileSync(join(fx, ".claude", "log_session"), "utf8")), { id: line.session, branch: line.branch, issue: "ABC-7" });
+test("validate-frontmatter --staged (the pre-commit hook): only staged docs are checked; nothing staged → exit 0", () => {
+  const dir = tmpDir("staged");
+  installEngine(dir);
+  const git = (...args) => spawnSync("git", ["-c", "user.name=fixture", "-c", "user.email=fixture@example.com", ...args], { cwd: dir, encoding: "utf8", env: baseEnv() });
+  assert.equal(git("init", "-q").status, 0);
+  writeFile(join(dir, "docs", "claude_tasks", "01_good.md"), SPEC);
+  writeFile(join(dir, "docs", "broken.md"), "# no frontmatter\n");
+  const validate = () => runNode(join(dir, "scripts", "validate-frontmatter.mjs"), ["--warn-only", "--staged", "--root", dir]);
+
+  const none = validate();
+  assert.equal(none.status, 0);
+  assert.match(none.stdout, /No staged \.md files — nothing to validate/);
+
+  assert.equal(git("add", "docs/claude_tasks/01_good.md").status, 0);
+  const one = validate();
+  assert.match(one.stdout, /Files checked: {3}1\b/);
+  assert.doesNotMatch(one.stdout + one.stderr, /broken\.md/, "an unstaged doc is not checked");
+
+  assert.equal(git("add", "docs/broken.md").status, 0);
+  const two = validate();
+  assert.match(two.stdout, /Files checked: {3}2\b/);
+  assert.match(two.stderr, /docs\/broken\.md: R1/);
+  assert.equal(two.status, 0, "--warn-only never blocks the commit");
 });

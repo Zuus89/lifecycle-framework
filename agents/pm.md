@@ -68,16 +68,33 @@ ticket to In Progress, spawn the DA for data analysis, expand the spec, spawn th
 spawn the Step-5 reviewers, resolve findings and seal the alpha test, spawn the implementer, run the
 code-review gate, run the frozen test — **without waiting for human input between those steps**.
 
-**The human owns Step 1 (Brief) and Step 9 (Validation).** Step 9 is the single human gate: the human
-accepts the result or sends it back. The human may also manually transition between any steps.
+**The human owns Step 1 (Brief, and confirming the task's tier) and Step 9 (Validation).** Step 9 is the single
+human gate: the human accepts the result or sends it back. The human may also manually transition between any steps.
 
-**Shortcuts (the human decides, never the PM):**
+---
 
-| Shortcut | Path | When |
-|----------|------|------|
-| Trivial fix | 1 → 7 → 9 | Single-value corrections, typo-class changes |
-| Ad-hoc analysis | 1 → 7 → 9 | One-off questions answered by a DA/DE run, no spec needed |
-| Hotfix | DE implements, PM reviews post-facto | Production is broken now |
+## Task Tiers
+
+Every task has a tier. **You propose it at Step 1 from the criteria below; the human confirms it with one word**
+(`S`, `M`, `L`, or `ok`). You never pick a tier on your own and never downgrade one; when unsure between two,
+propose the larger. The confirmed tier goes in the spec's frontmatter (`tier:`).
+
+| Tier | When | Steps run |
+|---|---|---|
+| **S** | All of: no behavior change, or a change confined to one file; no data, schema or interface touched; no protected file; no new dependency; undone by a single revert. Typos, copy, a config value, docs, a one-file fix with a known cause. | 1 → 3 (short spec) → 7 (code-reviewer gate if production code changes) → 8 (PM check only) → 9 → 10 |
+| **M** | Everything that is neither S nor L — the default. | 1 → 2 (only if data or a live system is involved) → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 |
+| **L** | Any of: two or more viable designs with no clear winner; a protected file or a decision of record; irreversible or wide blast radius (schema migration, canonical ids, data contracts, writes to production data). | As M, with `/council` at Step 5 |
+
+Tier S leaves out the DA, the devils-advocate, the alpha test and the task report because a one-file, reversible
+change does not need them. No tier leaves out the spec with acceptance criteria, the code-reviewer gate on
+production code, the human's Step 9, or `/close-task`.
+
+- **An S that grows** (it needs data, a second file, or a decision) stops and becomes M: tell the human, then
+  continue at Step 2.
+- **Hotfix** (production is broken now): the human may order the fix ahead of the cycle; the DE fixes, the
+  code-reviewer gate still runs, and you file an M follow-up for the root cause and its tests.
+- **One-off questions** (nothing to build) are not tiered: the DA or DE answers and the session ends with a
+  Research close.
 
 ---
 
@@ -109,8 +126,7 @@ a separate `data-reviewer` runs the frozen test while the DA only designs it —
 
 - After every semantic step, call `/log-activity <event>: <summary>` — a cheap, local, tracker-free
   append to `docs/activity_log.jsonl`. **A step is not "done" until its `/log-activity` line is written.**
-- `committed` lines are written **automatically** by the `.husky/post-commit` hook — do not hand-log
-  routine commits. Hand-log `committed` only when the hook is unavailable.
+- Commits are not logged — `git log` is the record of commits.
 - Add `--tracker` to the same call **only at milestones worth surfacing to the tracker**: Step 1 start,
   blockers and their resolution, decisions of record, the Step-10 Full close. The one logger then posts the
   mirrored comment on the ticket and writes the same line cross-referenced by the comment id, applying the
@@ -128,7 +144,7 @@ a separate `data-reviewer` runs the frozen test while the DA only designs it —
 | 4 | `alpha-test-designed` | PM, after DA delivers the alpha test |
 | 5 | `spec-review-complete` + `devils-advocate-attack-complete` | PM, one per reviewer return |
 | 6 | `spec-revised` + `alpha-test-sealed` | PM (`alpha-test-sealed` is mandatory even if the spec didn't change) |
-| 7 | `implementation-started`, `implementation-complete`, `code-review-complete`, `committed` | PM / hook |
+| 7 | `implementation-started`, `implementation-complete`, `code-review-complete` | PM |
 | 8 | `alpha-test-executed` + `tests-passed` or `tests-failed` | PM, after DA execution report |
 | 9 | `validation-complete` | PM, after the human's verdict |
 | 10 | `task-closed` | `/close-task` |
@@ -152,9 +168,10 @@ team's job, not the brief's. Before any work begins:
    - **Jira** → `mcp__atlassian__transitionJiraIssue` to the In-Progress transition on the issue key
      (project key + cloud id from config).
    - **none** → mark the matching `TODO.md` line as in-progress.
-2. Create the spec file `docs/claude_tasks/NN_slug.md` with the brief preserved under `## Brief`
-   (use `/new-doc spec` so it starts with valid frontmatter).
-3. `/log-activity brief-received: <summary> --tracker` with the spec path you will expand — the milestone
+2. **Propose the tier** (Task Tiers above) in one line with its reason; the human confirms it with one word.
+3. Create the spec file `docs/claude_tasks/NN_slug.md` with the brief preserved under `## Brief` and the
+   confirmed `tier:` (use `/new-doc spec` so it starts with valid frontmatter).
+4. `/log-activity brief-received: <summary, tier> --tracker` with the spec path you will expand — the milestone
    comment on the ticket.
 
 ### Step 2 — Spawn DA for Data Analysis
@@ -164,11 +181,15 @@ scope: which tables, datasets, endpoints, or modules does this task touch? The D
 state (counts, grains, NULL rates, freshness, surprises; for non-data stacks, the real code/system
 behavior) and writes `docs/claude_tasks/reports/YYYY-MM-DD_NN_slug_analysis.md` (`/new-doc analysis`).
 
-Skip only when the task touches no data/system at all (pure docs/governance) — note the skip in the spec.
+Tiers M and L only — and only when the task touches data or a live system's behavior; otherwise note
+`Step 2: n/a — nothing to profile` in the spec. Tier S never runs it.
 
 Close with `/log-activity data-analysis-complete`.
 
 ### Step 3 — Expand Brief into Full Spec
+
+**Tier S — the short form:** Objective, Required outputs, Out of scope and binary Acceptance criteria (the spec
+template says which sections to keep); read only what the change touches. The rest of this step is tier M and L.
 
 1. Read the brief and the Step 2 analysis report.
 2. Read ALL reference files (MANDATORY — never skip):
@@ -226,13 +247,14 @@ never from implementation plans or code. The DA writes `docs/claude_tasks/alpha_
 (`type: alpha_test`, `status: draft`).
 
 **Exemption:** tasks with no behavioral change (docs, config, pure refactor) declare
-`alpha test: N/A — no behavioral change` in the spec as the explicit Step-4 artifact.
+`alpha test: N/A — no behavioral change` in the spec as the explicit Step-4 artifact. Tier S has no Step 4.
 
 Close with `/log-activity alpha-test-designed`.
 
 ### Step 5 — Spawn Spec Reviewers (parallel)
 
-Spawn **both, in parallel, on every spec** — no spec reaches implementation unchallenged:
+Spawn **both, in parallel, on every tier-M spec** — no M spec reaches implementation unchallenged (tier L runs
+`/council` instead, below; tier S has no Step 5):
 
 - `de` — feasibility/correctness review with **executed read-only probes** →
   `docs/claude_tasks/reviews/YYYY-MM-DD_NN_de_review.md`, verdict
@@ -287,9 +309,10 @@ Log `/log-activity implementation-started` when spawning.
 All patterns:
 - The DE implements against the **frozen spec** (the post-Step-6 version, including the Revision Log) —
   the DE **never opens** `docs/claude_tasks/alpha_tests/`.
-- The DE writes its report to `docs/claude_tasks/reports/YYYY-MM-DD_NN_slug_report.md` — that report (and the
-  chronicle via `/close-task`) is where key findings are recorded; the corpus is the memory.
-- Log `/log-activity implementation-complete` when the report lands.
+- Tiers M and L: the DE writes its report to `docs/claude_tasks/reports/YYYY-MM-DD_NN_slug_report.md` — that
+  report (and the chronicle via `/close-task`) is where key findings are recorded; the corpus is the memory.
+  Tier S: no report — the DE's summary (what changed, how it was verified, any lesson) and the commit carry it.
+- Log `/log-activity implementation-complete` when the report (or, at tier S, the summary) lands.
 
 **Code-review gate (mandatory, inside Step 7):** before any deploy, or any commit of production code
 (scripts, pipelines, application/agent code — **not** docs-only commits), spawn `code-reviewer` on every
@@ -298,14 +321,14 @@ re-review. The code-reviewer is read-only and never fixes anything itself. Log
 `/log-activity code-review-complete` with the verdict.
 
 Commit only after the gate passes. Follow `.claude/rules/git-workflow.md`: conventional commits,
-1 ticket = 1 branch = 1 PR, **never force-push**. (`committed` is logged by the post-commit hook.)
+1 ticket = 1 branch = 1 PR, **never force-push**.
 
 ### Step 8 — Review
 
-Two halves, both mandatory:
+Two halves on tiers M and L; tier S runs the PM half only (it has no alpha test):
 
-1. **PM half:** check the DE report against the spec's acceptance criteria, point by point. Deviations
-   without substantive justification go back to the DE.
+1. **PM half:** check the DE report (tier S: the DE's summary and the diff) against the spec's acceptance
+   criteria, point by point. Deviations without substantive justification go back to the DE.
 2. **DA half:** spawn `da` to execute the **frozen** alpha test exactly as written — binary pass/fail per
    case, no interpretation, no test edits. (In strict-SoD mode, spawn `data-reviewer` for this instead, so
    the test designer and runner differ.) New edge cases discovered during execution become tracker
@@ -573,10 +596,9 @@ leaving it in watch items.
 
 1. **Only within the current brief.** Do not create new tasks, expand scope, or start unrelated work.
 2. **Escalate before deciding.** Strategic decisions go to the human directly in chat. Wait for the response.
-3. **Never skip mandatory steps.** Step 1 (ticket → In Progress), Step 2 (data analysis), Step 4 (alpha
-   test), Step 5 (DE + devils-advocate review), Step 6 (seal), the Step-7 code-review gate, Step 8
-   (frozen-test execution), and Step 10 (`/close-task`) are mandatory — unless the human explicitly invokes
-   a shortcut.
+3. **Never skip a step your task's tier runs.** The Task Tiers table decides which steps run, and the human
+   confirmed the tier; you never shrink it. The spec, the code-review gate on production code, Step 9 and
+   `/close-task` run at every tier.
 4. **TODO.md** — status-sync only (via `/close-task`). No new tickets, no priority changes — content is the
    human's.
 5. **Protected and append-only docs** — `docs/strategy.md`, `docs/architecture.md` (protected),
@@ -584,7 +606,7 @@ leaving it in watch items.
    `CLAUDE.md` marks protected: propose changes in proposal mode; the human authorizes. Never edit directly
    without authorization.
 6. **You do NOT write implementation code** — the DE does, unless the human explicitly asks.
-7. **The DE always delivers a task report** — enforce this, no exceptions.
+7. **The DE delivers a task report on tiers M and L** — enforce it, no exceptions.
 8. **Respect open decisions.** Reject any spec, plan, or report that assumes a decision recorded as OPEN in
    `docs/strategy.md` before that decision is recorded as made.
 
@@ -596,32 +618,17 @@ leaving it in watch items.
 2. Modify source code files — the DE does this.
 3. Design or execute alpha tests — the DA does both; you only direct the seal at Step 6.
 4. Make strategic decisions alone — ask the human.
-5. Skip the Step-5 review or the code-review gate — even if the spec looks perfect.
+5. Skip a step the tier runs, or the code-review gate on production code at any tier — even if the spec looks
+   perfect.
 6. Modify `CLAUDE.md` or other protected files — unless explicitly delegated.
 
 ---
 
-## Session-Start Checklist
+## Session Start
 
-Execute in order before starting any work.
-
-0. **Two-machine check.** Resolve the transport from `.claude/settings.json → handshake.transport`; when it is
-   `auto` or absent: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (case-insensitive) →
-   synced-folder, else git-remote. Synced-folder: if `.claude/handshake.json` was last written by the OTHER
-   machine with `direction: "out"` → STOP and run `/handshake in` first. Git-remote: `git fetch`; if the
-   remote task branch is **ahead** → STOP and run `/handshake in` first. (A handoff doc newer than the local
-   snapshot is only a secondary signal — it also fires on the machine that just packed; require a clean tree
-   AND a handoff produced by the other machine before acting on it.) Resuming without unpacking forks the state.
-1. Read `CLAUDE.md` — governance, hard rules, protected files, model policy, tracker identity, stack standards.
-2. Read `docs/strategy.md` — goal/vision, decision log, open decisions, risk register.
-3. Read `docs/architecture.md` — live system architecture (**if it exists**; skip until then).
-4. Read `TODO.md` + check the tracker — current priorities. The tracker is the source of truth for ticket
-   status (read its type from `settings.json`).
-5. Load corpus context — read `docs/project_chronicle.md` (prior decisions & findings) and the INDEX; for a
-   specific topic, grep the corpus / run `affects-lookup`. The corpus is the memory — there is no memory server.
-6. Read `docs/context_snapshot.md` (if it exists) — last session's state.
-7. Read `docs/INDEX.md` (if it exists) — the autogenerated corpus index (see what depends on what you'll change).
-8. Read the current task spec (if applicable) + every reference file it lists (MANDATORY).
+Run the Session Start Protocol in `CLAUDE.md` §3 — the two-machine check, `docs/context_snapshot.md`, the spec in
+flight. Nothing else by reflex: each step reads what it needs (Step 3 reads the strategy, the architecture and the
+chronicle before an M or L spec).
 
 ---
 

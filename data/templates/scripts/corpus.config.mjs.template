@@ -1,16 +1,15 @@
 /**
  * corpus.config.mjs — Single source of truth for {{PROJECT_NAME}} corpus constants.
  *
- * Scaffolded by /lifecycle-init from the lifecycle-framework plugin. The five
+ * Scaffolded by /lifecycle-init from the lifecycle-framework plugin. The four
  * corpus tools import their project-specific constants from this module:
  *   - _corpus-walk.mjs          (EXCLUDED_DIRS, EXCLUDED_ROOT_FILES, PROJECT_SKILLS)
- *   - validate-frontmatter.mjs  (TYPE/STATUS/AUTHORITY enums, verdicts, affects grammar, VALIDATOR)
+ *   - validate-frontmatter.mjs  (TYPE/STATUS/AUTHORITY/TIER enums, verdicts, affects grammar, VALIDATOR)
  *   - build-index.mjs           (TICKET_REGEX, OUTPUT paths)
- *   - log-commit-activity.mjs   (OUTPUT paths, BRANCH_TICKET_REGEX, TICKET_KEY, LOG_FIELDS)
  *   - affects-lookup.mjs        (TICKET_REGEX, OUTPUT paths)
  * The /log-activity skill documents LOG_FIELDS / EVENTS / LOG_AGENTS (the
- * activity-log contract); this file is the machine copy the hook and the
- * plugin's consistency test read.
+ * activity-log contract); this file is the machine copy the plugin's
+ * consistency test reads.
  *
  * Change the taxonomy in ONE place; the tools follow. Centralizing these
  * constants eliminates the multi-file drift that comes from each script
@@ -109,15 +108,22 @@ export const VERDICT_ENUMS = {
 /** Valid status values for type: alpha_test (a strict subset of STATUS_ENUM). */
 export const ALPHA_TEST_STATUS_ENUM = new Set(['draft', 'sealed', 'passed', 'failed']);
 
+/**
+ * Task tiers (`tier:` on a spec). The PM proposes one at Step 1, the human
+ * confirms it; the tier decides which lifecycle steps run (the PM agent holds
+ * the criteria and the step map). A spec without a tier is treated as M.
+ */
+export const TIER_ENUM = new Set(['S', 'M', 'L']);
+
 // ---------------------------------------------------------------------------
 // Activity log contract (docs/activity_log.jsonl) — the single logger
 // ---------------------------------------------------------------------------
 
 /**
  * The JSONL line shape, in order. Every field is always present (`null`, never
- * omitted). Written by /log-activity (every step; `--tracker` at milestones
- * fills tracker_comment_id) and by log-commit-activity.mjs (the post-commit
- * hook: agent/model/step/pr_url/tracker_comment_id are null).
+ * omitted). Written by /log-activity only (every step; `--tracker` at
+ * milestones fills tracker_comment_id). Commits are not logged here — git log
+ * is the record of commits.
  */
 export const LOG_FIELDS = [
   'ts', 'session', 'ticket', 'branch', 'pr_url', 'step', 'agent', 'model',
@@ -134,7 +140,6 @@ export const LOG_AGENTS = new Set([
 /**
  * The closed event vocabulary, mapped to the 10-step lifecycle. `step` is the
  * lifecycle step the event closes, or null for events with no fixed step.
- * `committed` is 7 when hand-logged and null from the post-commit hook;
  * `kb-curated` is 10 on a Full/Research close and null on a Transitory one.
  * Add an event here first; /log-activity §B documents the same table.
  */
@@ -149,7 +154,6 @@ export const EVENTS = {
   'alpha-test-sealed':               { step: 6,    description: 'Step 6 — alpha test frozen (status: sealed, sealed_date set)' },
   'implementation-started':          { step: 7,    description: 'Step 7 — implementation begins' },
   'implementation-complete':         { step: 7,    description: 'Step 7 — implementation done, self-review passed' },
-  'committed':                       { step: 7,    description: 'code committed (7 when hand-logged; null from the post-commit hook)' },
   'code-review-complete':            { step: 7,    description: 'Step 7 — code-reviewer gate done (verdict in summary)' },
   'alpha-test-executed':             { step: 8,    description: 'Step 8 — the FROZEN alpha test was run' },
   'tests-passed':                    { step: 8,    description: 'Step 8 — alpha test / validations passed (binary)' },
@@ -176,8 +180,7 @@ export const EVENT_NAMES = new Set(Object.keys(EVENTS));
  * The project's tracker ticket prefix (Jira project key or Linear ticket
  * prefix). Drives both TICKET_REGEX (frontmatter full-string match) and
  * BRANCH_TICKET_REGEX (loose derivation from branch names / filenames).
- * Alias of `ticketKey`, kept for the historical import surface
- * (log-commit-activity.mjs imports TICKET_KEY).
+ * Alias of `ticketKey`, kept for the historical import surface.
  */
 export const TICKET_KEY = ticketKey;
 

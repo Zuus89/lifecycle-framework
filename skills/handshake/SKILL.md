@@ -50,8 +50,8 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
 |---|---|---|
 | synced-folder | `.claude/handshake.json` absent, or last written by THIS machine (`machine` == this hostname), with local work present (dirty tree, or commits since the marker's `ts`) | **out** |
 | synced-folder | marker written by the OTHER machine (`machine` ≠ this hostname) with `direction: "out"` — a surviving `{other, "out"}` marker itself witnesses "not yet unpacked here", because §2.6 flips it on unpack; staleness is §2.1's problem, not this table's | **in** |
-| git-remote | dirty tree (`git status --porcelain` non-empty, **excluding hook residue** — a modification of ONLY `docs/activity_log.jsonl` whose diff is purely trailing `committed` hook lines, see §3.2.1) OR unpushed commits (`git log @{u}..HEAD` non-empty) | **out** |
-| git-remote | clean tree (hook residue excluded) AND remote ahead (`git log HEAD..@{u}` non-empty). A handoff doc newer than the local snapshot, or a missing snapshot while handoffs exist, is a **secondary** signal — it also fires on the machine that just packed (out writes the handoff AFTER the snapshot), so it counts only when the newest handoff's machine hint is NOT this hostname | **in** |
+| git-remote | dirty tree (`git status --porcelain` non-empty) OR unpushed commits (`git log @{u}..HEAD` non-empty) | **out** |
+| git-remote | clean tree AND remote ahead (`git log HEAD..@{u}` non-empty). A handoff doc newer than the local snapshot, or a missing snapshot while handoffs exist, is a **secondary** signal — it also fires on the machine that just packed (out writes the handoff AFTER the snapshot), so it counts only when the newest handoff's machine hint is NOT this hostname | **in** |
 | either | both kinds of signal, or neither | **ASK — never guess a direction** |
 
 ## 1. `/handshake out` — synced-folder transport
@@ -150,26 +150,18 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
 5. **Log + INDEX + commit + push.** `/log-activity handshake-out` (before the commit, so the line rides the
    push; summary = wip hash + handoff path + machine hint). `node scripts/build-index.mjs`; stage the handoff
    doc + `docs/INDEX.md` + `docs/index.json` + `docs/activity_log.jsonl`; commit
-   `docs(handoff): handshake out <TICKET> YYYY-MM-DD`; plain `git push` (the pre-push hook re-verifies INDEX
-   freshness — it passes because the rebuild just ran). Push rejected → §4 divergence. The post-commit hook
-   auto-logs `committed` lines — expected; do not hand-log them. **The FINAL commit's own hook line stays
-   uncommitted by design** (sweeping it would fire the hook again — infinite regress): the leaving machine ends
-   with exactly one expected residue, a trailing `committed` line in `docs/activity_log.jsonl`, restored at
-   `/handshake in` (§3.2.1).
+   `docs(handoff): handshake out <TICKET> YYYY-MM-DD`; plain `git push`. Push rejected → §4 divergence. The
+   leaving machine ends with a clean tree.
 6. **Report:** what traveled (up to 3 commits: wip transport / curation bundle / handoff+INDEX), the handoff
-   path, the expected hook residue, and: *"On the other machine: open the repo and run `/handshake in`."*
+   path, and: *"On the other machine: open the repo and run `/handshake in`."*
 
 ### 3.2 `/handshake in`
 
 1. **Sanity.** `git remote get-url origin` must match `settings.json → git.repo` — mismatch → STOP (wrong
-   clone). Then triage the tree:
-   - **Hook residue (expected):** the only modification is `docs/activity_log.jsonl` and its diff is purely
-     trailing `committed` hook line(s) whose commits are already in pushed history → `git restore
-     docs/activity_log.jsonl` (the line is machine-reproducible from `git log`; no audit loss) and continue.
-     This is the leaving machine's designed end-state (§3.1.5), not divergence.
-   - **Anything else dirty** → STOP and report the files: real work → that IS divergence — offer to commit it
-     as `wip(<TICKET>): handshake-in divergence <machine>` and go to §4; junk → the HUMAN discards it (the
-     destructive guard blocks `reset --hard` / `clean -f`; never propose them). **Never stash.**
+   clone). Then the tree must be clean. **Anything dirty** → STOP and report the files: real work → that IS
+   divergence — offer to commit it as `wip(<TICKET>): handshake-in divergence <machine>` and go to §4; junk →
+   the HUMAN discards it (the destructive guard blocks `reset --hard` / `clean -f`; never propose them).
+   **Never stash.**
 2. **Pull.** `git fetch`. **Early exit:** if the newest handoff was written by THIS machine and the remote is
    not ahead, nothing arrived — report *"this machine packed last — nothing to unpack"* and stop. If the task
    branch does not exist locally (first transfer to this clone), materialize it: identify it (explicit
@@ -179,10 +171,12 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
 3. **Handoff.** Newest doc in `docs/claude_tasks/handoffs/` (date prefix, then `updated:`). Its `Branch:` must
    match the current branch — mismatched or missing → degraded resume (§6), never regenerate the snapshot from
    a stale or foreign handoff without asking.
-4. **Regenerate the snapshot.** Overwrite the gitignored `docs/context_snapshot.md` from the handoff (section
-   map: State in force → State in force · What this session did → What the last session did · OPEN → OPEN ·
-   Carry-over → Carry-over · environment notes → environment notes). The snapshot **stays gitignored** — never
-   commit it.
+4. **Regenerate the snapshot.** Overwrite the gitignored `docs/context_snapshot.md`, keeping its section headings
+   (`/close-task` §2 describes each): State in force ← the handoff's State in force · Next action ← the handoff's
+   OPEN item 1 (the rest of OPEN joins Carry-over) · Carry-over ← Carry-over · How to run things ← the handoff's
+   environment notes. Rebuild the three derivable sections from committed files on this machine: Recent decisions
+   (the chronicle tail), Open decisions (`docs/strategy.md`), Dependencies (`node scripts/affects-lookup.mjs` on the
+   spec's `affects:`). The snapshot **stays gitignored** — never commit it.
 5. **Environment verification.** Same table as §2.5.
 6. **Do NOT un-WIP.** Work continues on top of the `wip(...)` commit; the PR squash-merge flattens it. No
    amend, no rebase, no cleanup commit.
@@ -231,14 +225,14 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
 | `node_modules` unhydrated / broken executables | Offer `npm install` |
 | No remote / unreachable (git-remote out) | Abort; fallback = plain `/close-task` Transitory; retry online |
 | Push rejected — remote ahead (git-remote) | §4 divergence protocol |
-| Dirty tree at `/handshake in` (git-remote) | Hook residue (only `docs/activity_log.jsonl`, purely trailing `committed` lines for pushed commits) → `git restore` it and continue (§3.2.1). Anything else → STOP; wip-divergence commit or human cleanup; never stash |
+| Dirty tree at `/handshake in` (git-remote) | STOP; wip-divergence commit or human cleanup; never stash (§3.2.1) |
 | Task branch absent in the arriving clone (first transfer) | `git fetch`, identify the branch (newest `wip`/`docs(handoff)` commit; ambiguous → ask), `git switch --track origin/<branch>`, continue the normal flow |
 | Handoff doc missing / Branch mismatch (git-remote in) | Degraded resume: reconstruct from the last commits' diff, `docs/activity_log.jsonl` tail, and `TODO.md`; say loudly the snapshot could not be regenerated from a handoff; recommend `/handshake out` next boundary |
 | No active task (research session) | Marker/handoff with `ticket: null`, `task_number: 0`, slug from the branch |
 | `tracker = none` | Skip tracker-key and tracker-MCP checks; handoff header Tracker = "local TODO.md only" |
 | Secrets missing on the arriving machine | Names-only report + which capabilities are down until the keys exist (script/REST consumers only — the tracker MCP and `/log-activity --tracker` depend on `/mcp` OAuth at the recorded scope, not on secrets.env) |
 | Branch protection blocks pushing the task branch (git-remote) | Report the server's exact rejection; options: adjust protection for the task-branch namespace, or accept transfer only at PR boundaries. Never bypass |
-| Pre-push INDEX drift at push time | Run `npm run build:index`, commit the INDEX pair as a NEW commit (never `--amend`), push again. Never `--no-verify` |
+| CI reports INDEX drift on the pull request | Run `npm run build:index`, commit the INDEX pair as a NEW commit (never `--amend`), push again |
 
 ## Reference
 
@@ -248,7 +242,6 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
 - `.claude/rules/git-workflow.md` — the WIP transport carve-out.
 - `.claude/rules/mcp-usage.md` §0 — MCP scope + the two-machine consequence + Windows dual-casing hazard.
 - `.claude/rules/frontmatter.md` — the `handoff` type extension (`next_action:`).
-- `.husky/pre-push` — the INDEX-freshness gate every push must satisfy.
 
 ## Invocation
 
