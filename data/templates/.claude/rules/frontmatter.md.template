@@ -233,7 +233,7 @@ repo surface). Purely local changes MAY omit `affects:`.
 | `doc.<name>` | A governed document consumed by other artifacts | `doc.strategy`, `doc.architecture` |
 
 This prefix set is the generic baseline. **The machine copy of this grammar is
-`corpus.config.mjs → AFFECTS_PREFIXES` — the validator checks against THAT list, so the two
+`scripts/corpus.config.mjs → AFFECTS_PREFIXES` — the validator checks against THAT list, so the two
 must stay in sync.** A project MAY extend the grammar with stack-specific prefixes by adding
 them to `AFFECTS_PREFIXES` AND documenting the addition here in the same change; a prefix
 documented here but missing from the config (or vice versa) is exactly the drift this warning
@@ -261,7 +261,7 @@ section is its specification.
 10. **UTF-8 without BOM** — the file does not start with `\xEF\xBB\xBF`.
 11. **No leftover template sentinel** — the "DELETE THIS HEADER BEFORE PUBLISHING" marker is not present in a published artifact under `docs/claude_tasks/` or `docs/knowledge_base/`.
 12. **At most one `ssot`** per `(ticket, surface)` pair (§4).
-13. **`tier:`** on a `type: spec`, when present, is one of `S | M | L` (`TIER_ENUM` in `corpus.config.mjs`).
+13. **`tier:`** on a `type: spec`, when present, is one of `S | M | L` (`TIER_ENUM` in `scripts/corpus.config.mjs`).
 
 ### Soft rules (warning only)
 

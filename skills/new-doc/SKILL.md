@@ -16,7 +16,7 @@ Every governed doc must start valid: correct frontmatter, correct shape. That is
 > **Template source:** `docs/_templates/` — one template per type (11 templates). A template is the only definition
 > of its document's structure: agents and skills point to it, never restate it.
 > **Validator (project-scaffolded, repo-relative path — never `${CLAUDE_PLUGIN_ROOT}`):** `node scripts/validate-frontmatter.mjs <file>` — run after scaffolding.
-> The corpus engine (`scripts/*.mjs` + `corpus.config.mjs`) lives in the **project repo**, not the plugin, because git hooks and CI invoke the same scripts by relative path. Always call it as `scripts/...`.
+> The corpus engine (`scripts/*.mjs` + `scripts/corpus.config.mjs`) lives in the **project repo**, not the plugin, because git hooks and CI invoke the same scripts by relative path. Always call it as `scripts/...`.
 
 > Naming note: the role reviews `review_code-reviewer` and `review_devils-advocate` were formerly aliased `review_heimdall` and `review_loki`. The aliases are documentation cross-references only — use the role-descriptive names everywhere.
 
@@ -31,7 +31,7 @@ Every governed doc must start valid: correct frontmatter, correct shape. That is
 
 ## Types and destinations
 
-The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task number; `slug` is a short kebab-case label. `<TICKET>` is the tracker ticket id — read the **tracker type** (Jira / Linear / none) and the **ticket prefix** from `corpus.config.mjs` / `.claude/settings.json` / `CLAUDE.md` at runtime; never hardcode a prefix here.
+The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task number; `slug` is a short kebab-case label. `<TICKET>` is the tracker ticket id — read the **tracker type** (Jira / Linear / none) and the **ticket prefix** from `scripts/corpus.config.mjs` / `.claude/settings.json` / `CLAUDE.md` at runtime; never hardcode a prefix here.
 
 | Type | Template | Destination path | Lifecycle step |
 |------|----------|------------------|----------------|
@@ -75,7 +75,7 @@ The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task n
    - `alpha_test` → `designed_by: da`, `status: draft`, `sealed_date: null`. The seal (`status: sealed`, `sealed_date:` set) happens **only at lifecycle Step 6**, after spec review resolves — never at scaffold time. (Freeze rule.)
    - `analysis` → `type: report` with `tags: [analysis]`; written at Step 2, BEFORE the spec exists — so no
      `depends_on` to a spec. Ad-hoc DA investigations use it too.
-   - `review_de` / `review_da` / `review_code-reviewer` / `review_devils-advocate` → set `reviewer:` to the matching role (`de | da | code-reviewer | devils-advocate`); leave the verdict as a placeholder until the review actually runs. The `code-reviewer` verdict enum is `safe | non_blocking | not_safe_to_deploy`; the `devils-advocate` verdict enum is `attack | mostly_grounded_dissent | mostly_speculative` (both enforced by the validator from `corpus.config.mjs`).
+   - `review_de` / `review_da` / `review_code-reviewer` / `review_devils-advocate` → set `reviewer:` to the matching role (`de | da | code-reviewer | devils-advocate`); leave the verdict as a placeholder until the review actually runs. The `code-reviewer` verdict enum is `safe | non_blocking | not_safe_to_deploy`; the `devils-advocate` verdict enum is `attack | mostly_grounded_dissent | mostly_speculative` (both enforced by the validator from `scripts/corpus.config.mjs`).
    - `council` → `status: pending` until the human delivers the Step 7 verdict (then `decided` / `open`).
    - `report` → link it to its spec via `depends_on:` (the spec path) so the report/spec chain resolves in the index.
    - `handoff` → `status: snapshot`, `authority: secondary`, `next_action:` = the exact first OPEN item (the
@@ -103,7 +103,7 @@ The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task n
 - ALWAYS run the validator after scaffolding — do not deliver a file with hard frontmatter violations.
 - For `spec` and `alpha_test`, the tracker field is required (set to a real ticket id or `null` explicitly), as is `task_number:`.
 - NEVER scaffold an `alpha_test` as `sealed`. Sealing happens only at lifecycle Step 6, after spec review resolves: the PM directs it, the DA performs it. **The DE never creates or edits an alpha test** (the alpha-test wall).
-- NEVER hardcode a ticket prefix, tracker type, or project paths in the scaffolded doc — read the prefix and tracker from `corpus.config.mjs` / `.claude/settings.json` / `CLAUDE.md` at runtime.
+- NEVER hardcode a ticket prefix, tracker type, or project paths in the scaffolded doc — read the prefix and tracker from `scripts/corpus.config.mjs` / `.claude/settings.json` / `CLAUDE.md` at runtime.
 - Call the validator by its repo-relative path (`scripts/validate-frontmatter.mjs`), never via the plugin root — git hooks and CI invoke the same script that way.
 
 ---
@@ -113,7 +113,7 @@ The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task n
 - Template inventory: `docs/_templates/`
 - Frontmatter taxonomy SSOT: `.claude/rules/frontmatter.md`
 - Validator: `scripts/validate-frontmatter.mjs`
-- Per-project corpus constants (paths, tracker key, project slug): `corpus.config.mjs`
+- Per-project corpus constants (paths, tracker key, project slug): `scripts/corpus.config.mjs`
 - Lifecycle steps and the freeze rule: `.claude/CLAUDE.md` + `FRAMEWORK.md`
 - Council verdict shape: the `/council` skill (which scaffolds via `/new-doc council`)
 - Index rebuild + dangling-ref / sealed-test checks: the `/audit-corpus` skill

@@ -17,7 +17,7 @@ or path. Read these first, then act:
 - **`.claude/settings.json`** — `handshake.transport` (`auto | synced-folder | git-remote`), `git` block
   (`repo`, `defaultBranch`, **`account`**), `mcp.scope` + `mcp.servers` (the per-machine verification list),
   `tracker`, `databricks`, `agents`.
-- **`corpus.config.mjs`** — paths, ticket prefix, project slug.
+- **`scripts/corpus.config.mjs`** — paths, ticket prefix, project slug.
 - **`CLAUDE.md`** — communication language, protected files, hard rules.
 - **`.claude/rules/git-workflow.md`** — the `wip(<TICKET>):` carve-out (git-remote transport only).
 - **`.claude/rules/mcp-usage.md` §0** — the recorded MCP scope and the per-machine consequence.
@@ -56,9 +56,9 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
 
 ## 1. `/handshake out` — synced-folder transport
 
-1. **Transitory close.** Run `/close-task` **§0 Transitory variant verbatim** (snapshot overwrite + kb-curator +
-   INDEX rebuild if the curator wrote + `/log-activity paused` + curation bundle commit + report). Do not
-   reimplement it; do not skip it. Commits are fine on this transport — `.git/` syncs — but no push is required.
+1. **Transitory close.** Run `/close-task` **§0 Transitory variant verbatim** (snapshot overwrite + kb-curator when the
+   session produced a report, spec or review + INDEX rebuild if the curator wrote + `/log-activity paused` +
+   curation bundle commit + report). Do not reimplement it; do not skip it. Commits are fine on this transport — `.git/` syncs — but no push is required.
 2. **Marker.** Write `.claude/handshake.json` (gitignored; travels by sync):
    ```json
    { "machine": "<hostname>", "ts": "<ISO-8601 UTC>", "branch": "<current branch>",
@@ -101,7 +101,7 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
    | `gh auth status` — the account matching `git.account` exists and can reach the remote | `settings.json → git.account` | `gh auth switch --user <account>` (or `gh auth login` if absent) |
    | `~/.databrickscfg` has a profile per configured env | `settings.json → databricks.envs` (skip when `databricks.enabled` ≠ on) | `databricks configure` guidance per env; never write the file yourself |
    | `node --version` ≥ 24, husky hooks present + executable | `package.json` | `npm install` (re-runs `prepare`/husky) |
-   | `python --version` | only if the destructive guard's stack patterns are enabled | install pointer only |
+   | `python --version` (Python 3 as `python`) | always — the plugin's guard hooks run on every Bash/PowerShell call and every Linear write | install pointer; a missing `python` is a blocker to report |
    | `.claude/.local/secrets.env` key PRESENCE by NAME — only for keys a project script actually consumes (REST fallbacks, `GITHUB_TOKEN`); the tracker MCP needs no key (OAuth — covered by the MCP row above) | `settings.json → tracker.type` + the secrets.env stub's own comments | which key NAMES to add and where each value comes from. On this transport secrets usually synced with the folder — verify anyway (first-time machine). **Never print, echo, or log a value** |
 
 6. **Fresh session id.** Regenerate `.claude/log_session` (new 8-char id, current branch/issue) — a machine

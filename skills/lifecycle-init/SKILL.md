@@ -15,10 +15,10 @@ You do NOT copy agents/skills/hooks — those are **Tier-A** (plugin-resident) a
 > anything. Creating a fresh repo is the fallback, not the default.
 
 > **Two-tier rule (never violate it):** Tier-A files (`agents/*.md`, `skills/**`, `hooks/*`) are
-> installed once with the plugin and read config (tracker, stack, models) at runtime — they contain **no**
+> installed once with the plugin and read config (tracker, stack, agent roster) at runtime — they contain **no**
 > `{{TEMPLATE_VARS}}`. Tier-B files (everything you write here, sourced from `${CLAUDE_PLUGIN_ROOT}/data/templates/`)
-> ARE templated: substitute every `{{VAR}}` and strip the `.template` suffix. Never write a `{{VAR}}` into a
-> scaffolded file; never leave a `.template` suffix on an output file.
+> ARE templated: substitute every `{{VAR}}` and strip the `.template` suffix where there is one. Never write a
+> `{{VAR}}` into a scaffolded file; never leave a `.template` suffix on an output file.
 
 The template root is **`${CLAUDE_PLUGIN_ROOT}/data/templates/`**. All output paths are relative to the **target
 project root** (the current working directory). All user-facing prose follows the project's communication language
@@ -33,15 +33,16 @@ than ask blindly**.
 
 1. **Target directory.** State the absolute CWD and confirm it is the project root to set up.
 2. **Prior run (idempotency).** Check for `.claude/CLAUDE.md` (or the **legacy root** `CLAUDE.md` — earlier
-   scaffolds wrote it there), `corpus.config.mjs`, `.claude/settings.json`. If any exist → **update mode**
+   scaffolds wrote it there), `scripts/corpus.config.mjs`, `.claude/settings.json`. If any exist → **update mode**
    (re-run pre-filled, prompt before overwriting; §7 governs protection). Else → **fresh scaffold**.
    **Legacy-location migration:** if a root `CLAUDE.md` exists and `.claude/CLAUDE.md` does not, offer
    `git mv CLAUDE.md .claude/CLAUDE.md` — the canonical home is INSIDE `.claude/` (both locations are
    auto-loaded by Claude Code, but the framework standardizes on `.claude/CLAUDE.md`; never leave two copies).
 3. **Templates.** Verify `${CLAUDE_PLUGIN_ROOT}/data/templates/` exists; list its tree once. If missing, stop — the
    plugin install is broken.
-4. **Toolchain.** `git --version`, `node --version` (need 24+), `npm --version`, and `python --version` (only needed
-   if the destructive hook's stack patterns are enabled). Record gaps.
+4. **Toolchain.** `git --version`, `node --version` (need 24+), `npm --version`, and `python --version` (required —
+   Python 3 as `python`: the plugin's guard hooks run on every Bash/PowerShell call and every Linear issue/project
+   write; without it they error and guard nothing). Record gaps; a missing `python` is a blocker to report.
 5. **Git context** (for C.1): `git rev-parse --is-inside-work-tree`, `git remote -v`, `git branch --show-current`,
    `git config user.name`, `git config user.email`, `git status --porcelain` (clean/dirty), and whether
    `.github/workflows/` already exists (pre-existing CI). **Also enumerate the connected git accounts** — the user
@@ -69,32 +70,38 @@ Then run the interview in **exactly this order**: A → B → C. Echo each captu
    The slug **must be unique across the user's projects** (it identifies the project — and, if `basic-memory` is
    enabled, its notes folder). Confirm it.
 2. **One-line goal** → `{{PROJECT_GOAL}}`.
-3. **Stack** → `{{STACK}}` (`web | data | generic`). Selects the CLAUDE.md / architecture / CI variant and stack MCP
-   guidance. **If `data`, default Databricks ON in C.3.** If unsure, `generic`.
+3. **Stack** → `{{STACK}}` (`web | data | generic`). Recorded in `CLAUDE.md`, `settings.json` and the
+   `architecture.md` frontmatter; every stack gets the same templates (there are no per-stack variants). It sets two
+   interview defaults: `data` → Databricks defaults ON in C.3; `web` → C.5 may offer Vercel. If unsure, `generic`.
 4. **Communication language** (default: Spanish to the user, English for code/docs) → `{{COMM_LANGUAGE}}`.
-5. **Model policy — confirm all-Opus defaults**, ask only for overrides:
+5. **Model policy — recorded, not chosen.** Each agent's model is the `model:` pin in its plugin frontmatter
+   (`${CLAUDE_PLUGIN_ROOT}/agents/<name>.md`). Read the pins and write them into the `CLAUDE.md` model table; init
+   does not change them, so there is nothing to ask. A pin changes in the plugin; a single spawn can override it
+   with the Agent tool's `model` parameter.
 
-   | Role | Default | Var |
-   |------|---------|-----|
-   | pm | session model (no pin — Opus via `/model`) | `{{MODEL_PM}}` = `session (Opus via /model)` |
+   | Role | Pin (plugin frontmatter) | Var |
+   |------|--------------------------|-----|
+   | pm | none — the session model (Opus via `/model`) | `{{MODEL_PM}}` = `session (Opus via /model)` |
    | de | `claude-opus-4-8` | `{{MODEL_DE}}` |
    | da | `claude-opus-4-8` | `{{MODEL_DA}}` |
    | code-reviewer | `claude-opus-4-8` | `{{MODEL_CODE_REVIEWER}}` |
    | devils-advocate | `claude-opus-4-8` | `{{MODEL_DEVILS_ADVOCATE}}` |
 
-   (Optional agents are fixed by policy: `corpus-steward`/`scout`/`dead-code-cleanup` = `sonnet`, `data-reviewer` =
-   `claude-opus-4-8`, `kb-curator` and `linear-steward` = `claude-opus-5`. Their pins live in the Tier-A agent
-   frontmatter; here you only document the policy.)
-6. **Agent roster.** Core five always on. Toggles: `corpus-steward` **ON** by default; `kb-curator` **ON** by
-   default (at-close KB curation on every `/close-task` variant — writes only `docs/knowledge_base/`);
-   `data-reviewer` OFF (ON sets `separation_of_duties_mode = strict`); `scout` OFF; `dead-code-cleanup` OFF;
-   `linear-steward` OFF (offer it only when the tracker is Linear — it keeps this repo's project, and at close the
-   closing ticket's project, to the Initiative → Project → Issue taxonomy, structural fields only, never the whole
-   workspace unless asked; ON needs `LINEAR_API_KEY` in `.claude/.local/secrets.env` for the SessionStart hygiene
-   detector, while the agent itself uses the Linear MCP; the detector reads the project from `tracker.project`).
-   Record the enabled set + SoD mode — **they are written to the `agents` block of `.claude/settings.json`**, the
-   machine-readable roster that `/close-task` and the PM read at runtime. (Re-running init on a project scaffolded
-   before this block existed simply ADDS it.)
+   (The optional `kb-curator` and `linear-steward` are pinned to `claude-opus-5`; the `CLAUDE.md` table states them
+   literally.) If a pin read from the frontmatter differs from this table, the frontmatter wins — write what it says.
+6. **Agent roster.** Core five always on. Toggles: `kb-curator` **ON** by default (at-close KB curation on every
+   Full and Research `/close-task`, and on a Transitory one when the session produced a report, spec or review —
+   writes only `docs/knowledge_base/`); `linear-steward` OFF (offer it only when the tracker is Linear — it keeps
+   this repo's project, and at close the closing ticket's project, to the Initiative → Project → Issue taxonomy,
+   structural fields only, never the whole workspace unless asked; ON needs `LINEAR_API_KEY` in
+   `.claude/.local/secrets.env` for the SessionStart hygiene detector, while the agent itself uses the Linear MCP;
+   the detector reads the project from `tracker.project`). **Separation of duties** → `{{SOD_MODE}}`: `collapsed`
+   (default — the DA designs and runs the frozen alpha test) or `strict` (a second, fresh `da` that never saw the
+   design runs it). Record the toggles + SoD mode — **they are written to the `agents` block of
+   `.claude/settings.json`**, the machine-readable roster that `/close-task` and the PM read at runtime. (Re-running
+   init on a project scaffolded before this block existed simply ADDS it. On a project scaffolded before 0.3, drop
+   the retired keys `corpus_steward`, `scout`, `dead_code_cleanup` and `data_reviewer`; a `data_reviewer: true`
+   becomes `separation_of_duties_mode: "strict"`.)
 7. **Memory backend** → `{{MEMORY_BACKEND}}` (`corpus | basic-memory`). **Default `corpus`** — there is **no memory
    MCP**: the project's markdown corpus *is* the knowledge graph (chronicle + snapshot + knowledge base + INDEX +
    `affects-lookup`).
@@ -230,7 +237,7 @@ Use the pre-flight detection of the connected tracker MCP.
    `/mcp`, per machine). Ask for a tracker API token ONLY if the project will call the tracker's REST API
    directly from scripts (outside the MCP); then write it into the **gitignored** `.claude/.local/secrets.env`
    (`LINEAR_API_KEY`, or `JIRA_API_TOKEN` + `JIRA_EMAIL`) — never into a committed file. The connection
-   **identity** goes into committed `settings.json` + `corpus.config.mjs`; tokens never do.
+   **identity** goes into committed `settings.json` + `scripts/corpus.config.mjs`; tokens never do.
 
 ### C.3 — Databricks (data stack)
 
@@ -247,7 +254,7 @@ Ask: **"Connect this project to Databricks?"** (default **yes** if `{{STACK}} = 
    env**. Record them in a per-env map. (Warehouse ids are not secrets but per the user's rules must not be hardcoded
    in code — they live in config.)
 3. **Where it goes:**
-   - **`.claude/settings.json`** + **`corpus.config.mjs`** (committed): a `databricks` block, filled via the
+   - **`.claude/settings.json`** + **`scripts/corpus.config.mjs`** (committed): a `databricks` block, filled via the
      template vars — `{{DATABRICKS}}` (on/off), `{{DATABRICKS_ENVS}}`, `{{DATABRICKS_PROFILE}}`,
      `{{DATABRICKS_DEFAULT_HOST}}`, and the per-env maps `{{DATABRICKS_HOSTS_JSON}}` / `{{DATABRICKS_WAREHOUSES_JSON}}`.
      No tokens; no catalog names hardcoded in code.
@@ -330,8 +337,8 @@ Resolve all before substitution; use **exactly** these names:
 | `{{DATABRICKS}}` (`on\|off`) / `{{DATABRICKS_ENVS}}` (comma list) / `{{DATABRICKS_PROFILE}}` / `{{DATABRICKS_DEFAULT_HOST}}` | C.3 |
 | `{{DATABRICKS_HOSTS_JSON}}` / `{{DATABRICKS_WAREHOUSES_JSON}}` | C.3 — JSON objects keyed by env (e.g. `{"dev":"...","prod":"..."}`); resolve to `{}` when `{{DATABRICKS}}=off` |
 | `{{MEMORY_BACKEND}}` (`corpus\|basic-memory`, default `corpus`) | A.7 |
-| `{{AGENT_CORPUS_STEWARD}}` / `{{AGENT_KB_CURATOR}}` / `{{AGENT_SCOUT}}` / `{{AGENT_DEAD_CODE_CLEANUP}}` / `{{AGENT_DATA_REVIEWER}}` / `{{AGENT_LINEAR_STEWARD}}` | A.6 — bare JSON booleans (`true`/`false`, unquoted); defaults `true, true, false, false, false, false` (`linear-steward` only offered when `{{TRACKER}} = linear`) |
-| `{{SOD_MODE}}` (`collapsed\|strict`) | A.6 — `strict` iff `data-reviewer` is ON, else `collapsed` |
+| `{{AGENT_KB_CURATOR}}` / `{{AGENT_LINEAR_STEWARD}}` | A.6 — bare JSON booleans (`true`/`false`, unquoted); defaults `true, false` (`linear-steward` only offered when `{{TRACKER}} = linear`) |
+| `{{SOD_MODE}}` (`collapsed\|strict`) | A.6 — default `collapsed` |
 | `{{TODAY}}` | `date +%F` |
 
 (`.mcp.json` expected contents by configuration: `{{MCP_SCOPE}} = local|user` + `corpus` backend → **empty**
@@ -347,18 +354,21 @@ surrounding template line still reads correctly.
 
 ## 2. Write the Tier-B files (template substitution)
 
-For every `*.template` under `${CLAUDE_PLUGIN_ROOT}/data/templates/`: read it, substitute every `{{VAR}}`, compute
-the output path (same relative path under project root, `.template` stripped), create parent dirs, apply the §7
-overwrite policy, write. Expected map: `.claude/CLAUDE.md` (stack-variant — **inside `.claude/`, never the repo
-root**), `TODO.md` (protected), `.gitignore`, `.mcp.json` (expected contents per the §1 note — empty by default; project scope → the wired servers, **merge with, never overwrite, servers already written by `claude mcp add --scope project`**; basic-memory per §6.4);
+For every file under `${CLAUDE_PLUGIN_ROOT}/data/templates/`: read it, substitute every `{{VAR}}` (only the
+`*.template` files carry them — the four corpus scripts, the git hook and the CI workflow have no suffix and are
+copied verbatim), compute the output path (same relative path under the project root, `.template` stripped when
+present), create parent dirs, apply the §7 overwrite policy, write. Expected map: `.claude/CLAUDE.md` (one template
+for every stack — **inside `.claude/`, never the repo root**), `TODO.md` (protected), `.gitignore`,
+`.gitattributes` (LF for hooks, scripts and the activity log), `package.json` (the corpus engine's dev dependencies:
+husky + js-yaml), `.mcp.json` (expected contents per the §1 note — empty by default; project scope → the wired servers, **merge with, never overwrite, servers already written by `claude mcp add --scope project`**; basic-memory per §6.4);
 `docs/{strategy.md,architecture.md}` (protected), `project_chronicle.md` (append-only, init entry `{{TODAY}}`),
 `context_snapshot.md`, empty `activity_log.jsonl`, `_templates/*`, `claude_tasks/{alpha_tests,reviews,reports,council,archive,handoffs}`,
-`audits/`, `knowledge_base/`, INDEX (autogen in §6); `.claude/{settings.json (committed, has Agent Teams env +
-connections), .local/secrets.env (gitignored), rules/*}` (`.claude/log_session` has no template — `/log-activity`
-creates it at runtime, gitignored); `.husky/pre-commit` (the one hook — validates the staged docs);
-`.github/workflows/lint-frontmatter.yml` (+ stack optionals, **alongside** any pre-existing CI); `scripts/*.mjs` +
-`corpus.config.mjs` (scaffolded into the repo — husky/CI call them by relative path; `${CLAUDE_PLUGIN_ROOT}` does not
-resolve there). If a template is absent, report it — don't fabricate.
+`audits/`, `knowledge_base/` (empty folders are kept by a `.gitkeep`), INDEX (autogen in §6);
+`.claude/{settings.json (committed, has Agent Teams env + connections), .local/secrets.env (gitignored), rules/*}`
+(`.claude/log_session` has no template — `/log-activity` creates it at runtime, gitignored); `.husky/pre-commit` (the one hook — validates the staged docs);
+`.github/workflows/lint-frontmatter.yml` (the one CI job — a corpus gate, **alongside** any pre-existing CI);
+`scripts/*.mjs`, `scripts/corpus.config.mjs` included (scaffolded into the repo — husky/CI call them by relative
+path; `${CLAUDE_PLUGIN_ROOT}` does not resolve there). If a template is absent, report it — don't fabricate.
 
 ---
 
@@ -376,8 +386,8 @@ resolve there). If a template is absent, report it — don't fabricate.
   scaffolded `.mcp.json` is empty (`{"mcpServers":{}}`). There is no `memory.jsonl` to create. Only when the user
   opted into `basic-memory` (A.7) do you run the §6.4 enablement (verify uv/uvx + Python 3.12+; write `.mcp.json` +
   `docs/memory/` + `.bmignore`; gitignore the SQLite index; extend the allowlist).
-- **`.claude/settings.json`** + **`corpus.config.mjs`** (committed): tracker **type + identity**, git remote/branch,
-  the `databricks` block (envs/profile/host+warehouse map). **No secrets.**
+- **`.claude/settings.json`** + **`scripts/corpus.config.mjs`** (committed): tracker **type + identity**, git
+  remote/branch, the `databricks` block (envs/profile/host+warehouse map). **No secrets.**
 - `{{TRACKER}} = none` → empty tracker identity, no token. `{{DATABRICKS}} = off` → no databricks block.
 
 ---

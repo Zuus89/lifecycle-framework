@@ -130,10 +130,10 @@ export const LOG_FIELDS = [
   'event', 'summary', 'artifacts', 'tracker_comment_id',
 ];
 
-/** Who may author a line: the role-descriptive agent ids, the human, or null (hook). */
+/** Who may author a line: the plugin's agent ids and the human (null survives only on historical lines). */
 export const LOG_AGENTS = new Set([
   'pm', 'de', 'da', 'code-reviewer', 'devils-advocate',
-  'corpus-steward', 'kb-curator', 'data-reviewer', 'scout', 'dead-code-cleanup', 'linear-steward',
+  'kb-curator', 'linear-steward',
   'human',
 ]);
 

@@ -223,7 +223,8 @@ decision; you propose); duplicate initiative names → 0; initiative names colli
 
 Spawned by the **PM** when the SessionStart hygiene detector reports drift in the repo's project ("Drift: N
 check(s) failing → spawn the linear-steward with scope: project …"), and by **`/close-task`** at every variant
-(Full, Research, Transitory) after the kb-curator, scoped to the closing ticket's project — or standalone, with the
+(Full, Research, Transitory) — after the kb-curator when that runs — scoped to the closing ticket's project — or
+standalone, with the
 scope stated: "tidy this project", "ordena el proyecto de CRI-1145", or, explicitly, "sweep the whole workspace".
 The spawn brief must carry: mode (`full` | `dry-run`), scope (`project "<name>"` | `workspace`), the ticket id,
 the session id, and whether the detector's cache is fresh.

@@ -36,7 +36,8 @@ specific to its role; this rule carries the rest, once.
    your context).
 2. The task spec — with its Revision Log once Step 6 has run — and every reference file it lists. Mandatory.
 3. The corpus on demand, for what your step touches: grep it (`docs/knowledge_base/` included, `aliases:` too) or
-   run `node scripts/affects-lookup.mjs <path>`; `docs/architecture.md` when your step depends on the live system.
+   run `node scripts/affects-lookup.mjs <object-id>` (an `affects:` id, not a path); `docs/architecture.md` when
+   your step depends on the live system.
 
 Then the reads your role adds; your agent definition lists them. Nothing else by reflex.
 

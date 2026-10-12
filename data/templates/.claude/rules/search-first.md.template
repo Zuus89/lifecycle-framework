@@ -11,31 +11,39 @@ tags: []
 
 # Search-First Rule
 
-Before editing any existing file, you MUST understand its blast radius first.
+Before editing any existing file, know its blast radius. This rule is the whole pre-edit impact check — whoever edits
+(usually the DE at Step 7) runs it; there is no separate agent for it.
 
-1. **Read the file** — understand its current state, structure, and purpose.
-2. **Check who depends on it (inbound)** — find everything that imports, includes, links to,
-   or references this file or its exported symbols. These are what you can break.
-3. **Check what it depends on (outbound)** — understand its own dependencies so you don't
-   silently change behavior it relies on.
-4. **Check sibling/related files** — when editing one of a set that must stay consistent
-   (parallel pages, parallel modules, a shared interface and its implementations), inspect
-   the others for consistency.
-5. **Check the tests** — read the tests covering this file before changing it, so you know
-   what behavior is contractually expected.
+1. **Read the file** — its current state, structure, and purpose.
+2. **Inbound — who depends on it** (what you can break): everything that imports, includes, links to, or references
+   the file or its exported symbols. Search by module name, exported symbols and import path; for example
+   - JS/TS: `grep -rEn "(import|require|from).*['\"].*<module>['\"]" <src> -l`
+   - Python: `grep -rEn "^(from|import)\s+.*<module>" <src> --include="*.py" -l`
+   - objects the corpus tracks: `node scripts/affects-lookup.mjs <object-id>` — an `affects:` id such as
+     `module.auth` or `data.sales_fact`, not a path. It lists the governed docs that name the object; no hit says
+     nothing about code imports.
+3. **Outbound — what it depends on**, so you don't silently change behavior it relies on.
+4. **Siblings** — when the file is one of a set that must stay consistent (parallel modules, an interface and its
+   implementations), read the others.
+5. **Tests** — read the tests covering the file before changing it: they are the contract.
+
+## Risk calls
+
+- **A leaf** (nothing imports it) → safe to edit freely; say so in one line and move on.
+- **More than ~10 inbound dependents** → any change to its exports or signatures is HIGH risk: say so in the Step-5
+  review or the task report.
+- **A new or deeper import cycle** (A → B → A), or an import across a boundary the architecture forbids (a lower
+  layer importing a higher one; a sibling reaching into another module's internals) → stop and raise it with the PM
+  **before** writing code. Use the stack's tool when it has one (dependency-cruiser, pydeps, the language server);
+  grep is the portable fallback.
 
 ## When this applies
-- ANY edit to an existing source file.
-- ANY rename or move (these change every inbound reference).
-- ANY change to a shared/exported symbol used across multiple files.
-- ANY change to a shared interface, type, schema, or contract.
+- ANY edit to an existing source file; ANY rename or move (these change every inbound reference).
+- ANY change to a shared/exported symbol, interface, type, schema, or contract.
 
 ## When this does NOT apply
 - Creating brand-new files with no existing dependents.
 - Purely additive documentation edits with no consumers.
 
 ## Rationale
-Understanding what depends on a file before editing prevents cascading breakage. A short
-read up front saves far more debugging later. This is the per-edit complement to the
-corpus's `affects-lookup` reverse index and the `scout` agent (if enabled) — for code edits,
-do the read manually before you touch the file.
+A short read up front saves far more debugging later.

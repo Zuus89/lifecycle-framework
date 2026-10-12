@@ -1,7 +1,7 @@
 # Lifecycle Framework — Canonical Definitions
 
 > The authoritative definitions behind the plugin: **(1)** the documents the scaffolder creates, **(2)** the
-> lifecycle, **(3)** the roles. This is the source of truth the `data/templates/` and agent files are generated from.
+> lifecycle, **(3)** the roles. These are the definitions the `data/templates/` and agent files implement.
 > Reflects the framework's defaults: models all-Opus, naming role-descriptive, separation-of-duties collapsed +
 > freeze enforced, tracker Jira/Linear asked at init.
 
@@ -37,7 +37,7 @@ These three hold the project's architecture, its history, and its intent. They s
   completed task: what was done, key findings, decisions, questions raised/resolved, next action.
 - **Why:** A ticket spans many tasks; memory does not. The chronicle keeps the reasoning. It is **cited as incident
   history** by the code-reviewer and devils-advocate to ground their objections in what actually happened before.
-- **Writes:** PM (via close-task) / corpus-steward. **When:** at every close, append only. **Protection:** append-only.
+- **Writes:** PM (via close-task). **When:** at every close, append only. **Protection:** append-only.
 
 ## B. Recoverable state files (state is files, not memory)
 
@@ -69,7 +69,8 @@ The project's current state must be reconstructable from a handful of files, so 
 - **What:** A tiny JSON state file `{ id, branch, issue }` holding the current session id, branch, and active ticket.
 - **Why:** Gives the log skills a stable session id to stamp every JSONL line with, so a session's steps are cleanly
   segmented in the log.
-- **Writes:** session start / log skills.
+- **Writes:** `/log-activity`, which creates it at runtime (there is no template; gitignored); `/handshake in`
+  regenerates it on the arriving machine.
 
 ## C. Queryable corpus index
 
@@ -78,7 +79,8 @@ The project's current state must be reconstructable from a handful of files, so 
   (`depends_on` / `affects`), built by `build-index.mjs`.
 - **Why:** Turns loose files into a machine-checkable knowledge base. The real value is **seeing relationships** —
   what depends on what you're about to change — not just finding files. Freshness is gated by CI on every pull
-  request (the PR fails if the INDEX drifts from source); `/close-task` rebuilds it whenever frontmatter changed.
+  request that touches docs (the PR fails if the INDEX drifts from source); `/close-task` rebuilds it whenever
+  frontmatter changed.
 - **Writes:** `build-index.mjs` (never by hand). **When:** `/close-task`, CI, and `/audit-corpus`.
 
 ## D. Lifecycle artifacts (`docs/claude_tasks/` and siblings)
@@ -128,15 +130,16 @@ One place per artifact type, so the folder is a corpus, not a pile.
   `/new-doc handoff` at an ordinary multi-session boundary.
 
 ### `docs/audits/`
-- **What:** Output home for `/audit-corpus` health reports (tiered High/Medium/Low) and the corpus-steward's
-  archival manifests. **Why:** keeps corpus-health output as dated, reviewable artifacts.
+- **What:** Output home for `/audit-corpus` health reports (tiered High/Medium/Low) and its `--archival`
+  proposal manifests. **Why:** keeps corpus-health output as dated, reviewable artifacts.
 
 ### `docs/knowledge_base/`
 - **What:** Curated domain knowledge the agents read: glossary / metric definitions, data dictionary, business
   rules, chart guidance. **Seeded at init** from any initial docs the user provides.
 - **Why:** Grounds the agents in domain truth so specs and analysis are built against reality, not assumptions.
-  **Writes:** the **kb-curator** at every `/close-task` variant (dedup ladder, rewrite-in-place, append-only
-  `## Sources`); seeded at init from user-provided docs; manual human edits are the human-directed exception.
+  **Writes:** the **kb-curator** at every Full and Research `/close-task`, and at a Transitory one when the
+  session produced a report, spec or review (dedup ladder, rewrite-in-place, append-only `## Sources`); seeded at
+  init from user-provided docs; manual human edits are the human-directed exception.
 
 ### `docs/_templates/`
 - **What:** The frontmatter-valid templates `/new-doc` scaffolds from: `spec, alpha_test, analysis, report,
@@ -158,8 +161,9 @@ One place per artifact type, so the folder is a corpus, not a pile.
 
 ### `.claude/settings.json` (committed)
 - **What:** Project config: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, tracker type + connection, stack, enabled MCP
-  servers, the scoped permission allowlist, and the PreToolUse hook wiring.
-- **Why:** **Committed** (not `.local`) so spawned teammates and CI inherit the Agent Teams flag and permissions —
+  servers, the `agents` roster block, and the scoped permission allowlist. No hook wiring lives here — the hooks
+  are plugin-resident (`hooks/hooks.json`).
+- **Why:** **Committed** (not `.local`) so spawned teammates inherit the Agent Teams flag and permissions —
   otherwise teammates block on prompts mid-lifecycle or the orchestration silently collapses to a single agent.
 
 ### `.claude/.local/secrets.env` (gitignored)
@@ -177,7 +181,9 @@ One place per artifact type, so the folder is a corpus, not a pile.
     `depends_on`/`affects`, validation rules. Drives the validator, husky, and CI. Required for the governed corpus.
   - `git-workflow.md` — conventional commits, `1 ticket = 1 branch = 1 PR`, never force-push.
   - `mcp-usage.md` — when/how to use each MCP server; Memory protocol at session start + after every task.
-  - `search-first.md` — read a file and its importers/dependents/tests **before** editing it.
+  - `search-first.md` — the whole pre-edit impact check: read a file, its inbound and outbound dependencies, its
+    siblings and its tests **before** editing it; a leaf edits freely, more than ~10 dependents is HIGH risk, a
+    new import cycle or boundary violation goes to the PM before any code.
   - `security.md` — no hardcoded secrets, parameterized queries, input validation, no leaked internal errors.
   - `teammate.md` — what every spawned teammate shares: working from the spawn prompt, reporting back to the PM,
     session start, recording findings in the corpus, the shared hard rules. Agents carry only their role.
@@ -189,15 +195,16 @@ One place per artifact type, so the folder is a corpus, not a pile.
   no pre-push hook (INDEX freshness is checked by CI and rebuilt by `/close-task`).
 - **Why:** Early, cheap feedback on the documents actually being committed.
 
-### `.github/workflows/lint-frontmatter.yml` (+ optional CI by stack)
-- **What:** MANDATORY CI, one job on every pull request: strict frontmatter validation (no `--warn-only`) +
-  INDEX-freshness verify. It installs only js-yaml, never the project's dependency tree. Optional add-ons:
-  `claude-code-review` (always-on bias-free PR-diff review), schema/catalog snapshot, dead-code, lint gates.
-- **Why:** The third, always-on, bias-free review layer (after DE self-review and PM review) on the PR diff.
+### `.github/workflows/lint-frontmatter.yml` — the one CI job
+- **What:** MANDATORY CI, one job on every pull request that touches a `.md` file, `scripts/` or the workflow:
+  strict frontmatter validation (no `--warn-only`) + INDEX-freshness verify. It installs only js-yaml, never the
+  project's dependency tree.
+- **Why:** The corpus gate — no pull request merges broken frontmatter or a stale INDEX. It is not a code review;
+  the code review is the `code-reviewer` gate before the commit.
 
-### `scripts/*.mjs` + `corpus.config.mjs`
+### `scripts/*.mjs` + `scripts/corpus.config.mjs`
 - **What:** The corpus engine: `validate-frontmatter`, `build-index`, `affects-lookup`, `_corpus-walk`, plus
-  per-project constants in `corpus.config.mjs`.
+  per-project constants in `scripts/corpus.config.mjs`.
 - **Why:** The tooling the skills, hooks, and CI call. **Scaffolded into the repo** (not plugin-resident) because
   husky/CI invoke them by relative path and `${CLAUDE_PLUGIN_ROOT}` doesn't resolve there.
 
@@ -207,8 +214,8 @@ One place per artifact type, so the folder is a corpus, not a pile.
 
 **The rule:** one Claude Code session runs **exactly one task**, Brief → Close — never a whole ticket. A ticket is
 the umbrella (many tasks → many sessions). A task too big for one session uses a *transitory close* at each boundary
-that persists the snapshot and runs the kb-curator (durable knowledge → `docs/knowledge_base/`), so the next
-session resumes exactly where this one stopped.
+that persists the snapshot (and runs the kb-curator when the session produced a report, spec or review), so the
+next session resumes exactly where this one stopped.
 
 Numbering is the canonical 1–10 (the deck). `/log-activity` fires after **every** step; `/council` may be convened at
 **any** point. Three phases: **Frame (1–4) · Challenge then build (5–7) · Verify and close (8–10)**.
@@ -222,7 +229,7 @@ Numbering is the canonical 1–10 (the deck). `/log-activity` fires after **ever
 | 5 | **Spec reviewed** | DE + devils-advocate | The DE checks feasibility/correctness with executed read-only probes. **In parallel**, the devils-advocate challenges the spec with ranked, evidence-grounded objections. No spec reaches implementation unchallenged. |
 | 6 | **Resolve** | PM | The PM addresses every objection. If the spec changes, the alpha test is refreshed. The spec is then **FROZEN** — this is the freeze point, before implementation. |
 | 7 | **Implementation** | DE | The DE builds against the frozen spec, runs a self-review checklist (signatures, no hardcoded config, security, error handling, tests pass), writes the task report (tiers M and L). **The code-reviewer gate runs here** before any deploy/commit (any CRITICAL → NOT SAFE). |
-| 8 | **Review** | PM + DA | The PM checks the report against acceptance criteria. The **DA runs the frozen alpha test** — binary pass/fail (collapsed SoD; in strict mode a separate `data-reviewer` runs it). |
+| 8 | **Review** | PM + DA | The PM checks the report against acceptance criteria. The **DA runs the frozen alpha test** — binary pass/fail (collapsed SoD; in strict mode a second, fresh `da` that never saw the design runs it). |
 | 9 | **Validation** | Human | The human does the final acceptance check on the live result, and either accepts it or sends it back. *(The one human gate — see open decision.)* |
 | 10 | **Close** | PM | `/close-task` writes the final log entry, refreshes the snapshot + TODO, appends to the chronicle, runs the kb-curator (session knowledge → `docs/knowledge_base/`), conditionally re-audits architecture, and moves the ticket to Done. The corpus (chronicle + snapshot + KB + INDEX) IS the persisted memory. |
 
@@ -243,20 +250,21 @@ No tier leaves out the spec with acceptance criteria, the code-reviewer gate on 
 and run against a result it could not influence (Step 8). **Separation of duties:** DA designs *and* (in collapsed
 mode) runs the frozen test; the **DE never touches the test**; the code-reviewer reviews code, never fixes it.
 
-**Three review layers:** ① DE self-review (in session, own checklist) → ② PM review (in session, vs spec) → ③ CI
-code-review (on the PR diff, always-on, bias-free).
+**Review layers:** ① the DE's self-review checklist → ② the `code-reviewer` gate (a fresh context; any CRITICAL
+blocks) before any production commit → ③ the PM's check against the spec, plus the frozen alpha test at Step 8. CI
+is the corpus gate (frontmatter + INDEX freshness), not a code review.
 
 **Traceability (dual-write, one logger):** after each step, `/log-activity` appends the JSONL line; at milestones
 the same call with `--tracker` also posts the mirrored tracker comment, cross-referenced by id. The line shape and
-the event vocabulary have one machine copy, `corpus.config.mjs` (`LOG_FIELDS`, `EVENTS`). Commits are not logged —
-`git log` is their record. The logger never moves a ticket to Done — `/close-task` does, once.
+the event vocabulary have one machine copy, `scripts/corpus.config.mjs` (`LOG_FIELDS`, `EVENTS`). Commits are not
+logged — `git log` is their record. The logger never moves a ticket to Done — `/close-task` does, once.
 
 ---
 
 # PART 3 — Role definitions
 
-The team is **role-specialized, not one generalist**. Each agent has an explicit *can* and *cannot*, a fitting
-model (cost follows criticality), and is spawned by the PM as an Agent-Teams teammate in its own context window.
+The team is **role-specialized, not one generalist**. Each agent has an explicit *can* and *cannot*, a model
+pinned in its frontmatter, and is spawned by the PM as an Agent-Teams teammate in its own context window.
 
 ## Core five (always shipped)
 
@@ -277,8 +285,9 @@ model (cost follows criticality), and is spawned by the PM as an Agent-Teams tea
 
 ### DA — `da` · model: Opus
 - **Mandate:** Data / QA Analyst. Three lifecycle moments: **Step 2** data profiling before any spec, **Step 4**
-  alpha-test design from the spec (+ Step 6 seal), **Step 8** binary frozen-test execution. Read-only on production
-  data (SELECT only); reproducibility non-negotiable (exact numbers, full queries).
+  alpha-test design from the spec (+ Step 6 seal), **Step 8** binary frozen-test execution — in strict SoD mode by a
+  second, fresh `da` that never saw the design. Read-only on production data (SELECT only); reproducibility
+  non-negotiable (exact numbers, full queries).
 - **Can:** profile data, design + run the frozen test, validate outputs. **Cannot:** write app code, mutate data,
   make architectural decisions.
 
@@ -299,35 +308,16 @@ model (cost follows criticality), and is spawned by the PM as an Agent-Teams tea
 
 ## Optional roles
 
-### corpus-steward — `corpus-steward` (alias: mimir) · default: ON · model: Sonnet
-- **Mandate:** Read-only docs-governance archival steward (**PROPOSAL MODE**). On demand, sweeps `docs/` and writes a
-  dated archival/cleanup manifest (closed-ticket bundles, superseded docs, consolidation candidates), each with an
-  exhaustive inbound-reference safety check and a never-archive exclusion set (protected files, SSOT with live
-  consumers, open-ticket dependents). **Never moves or deletes** — the PM executes. Realizes the deck's deferred
-  "Auditor" idea safely.
-
 ### kb-curator — `kb-curator` · default: ON · model: Opus 5
-- **Mandate:** The at-close knowledge-base curator. At **every** `/close-task` variant (Full, Research, AND
-  Transitory), ingests what the session committed and produced (report, spec, alpha-test result, chronicle tail,
-  diff), applies a notability gate ("when in doubt, don't create") and an evidence-cited dedup ladder against the
+- **Mandate:** The at-close knowledge-base curator. At every Full and Research `/close-task`, and at a Transitory
+  one when the session produced a report, spec or review, it ingests what the session committed and produced
+  (report, spec, alpha-test result, chronicle tail, diff), applies a notability gate ("when in doubt, don't create") and an evidence-cited dedup ladder against the
   existing KB, then **WRITES directly — but only under `docs/knowledge_base/`**: duplicates skipped, stale articles
   rewritten in place, genuinely new topics scaffolded from the `kb_article` template. Provenance lives in each
   article's append-only `## Sources` table (which also makes the curator idempotent across transitory → full
   closes). Its changes ride the close commit, so the diff stays reviewable. Boundary: the **write-mode, incremental,
-  KB-only** counterpart of the corpus-steward (periodic, whole-`docs/`, archival, proposal-only) — it never
+  KB-only** counterpart of `/audit-corpus --archival` (periodic, whole-`docs/`, archival, proposal-only) — it never
   deletes, moves, or merges files; restructuring is flagged, not executed.
-
-### data-reviewer — `data-reviewer` · default: OFF (strict-SoD opt-in) · model: Opus
-- **Mandate:** A distinct QA agent that **runs the frozen alpha test at Step 8** while the DA only **designs** it
-  (full separation of duties, per the deck). Enabled only when `separation_of_duties_mode = strict`.
-
-### scout — `scout` · default: OFF · model: Sonnet
-- **Mandate:** Pre-edit blast-radius / dependency analysis. Before an edit, maps inbound deps (who imports me =
-  blast radius) + outbound deps, flags circular-dependency risk and boundary violations. Overlaps `affects-lookup.mjs`.
-
-### dead-code-cleanup — `dead-code-cleanup` (alias: fenrir) · default: OFF · model: Sonnet
-- **Mandate:** Dead-code hunter: unused functions/imports/modules, orphaned files, dead endpoints, stale
-  TODO/FIXME. Read-only by default; deletes only on explicit approval, then re-validates. Overlaps the dead-code CI.
 
 ### linear-steward — `linear-steward` · default: OFF · model: Opus 5
 - **Mandate:** Linear project hygiene (Linear tracker only) — keeps **one project** to the workspace taxonomy
@@ -342,6 +332,19 @@ model (cost follows criticality), and is spawned by the PM as an Agent-Teams tea
   whose prefix unambiguously belongs to it); **proposes** deletions, closures and merges with evidence; never
   touches other projects' tickets; more than 20 writes in one run → stops and asks. Sweep record = a Linear
   document.
+
+## Folded into the core (0.3)
+
+Four former optional agents duplicated a rule, a skill or a core role; each now lives where it is used:
+
+- **scout** (pre-edit blast radius) → `.claude/rules/search-first.md`: the inbound/outbound grep recipes,
+  `affects-lookup` for governed docs, and the leaf / >10 dependents / cycle risk calls. Whoever edits runs it.
+- **dead-code-cleanup** → the `/dead-code` skill: same protocol (Confirmed / Suspicious / False-positive with
+  evidence, read-only by default, deletion only on explicit approval followed by build, lint and tests).
+- **corpus-steward** → `/audit-corpus --archival`: the same eligibility rules, never-archive set and exhaustive
+  inbound-reference grep, written as a proposal manifest; the PM moves files after the human's yes.
+- **data-reviewer** → strict separation of duties is a second, fresh `da` that never saw the design and runs the
+  sealed test after a `git log -p` integrity check. The `separation_of_duties_mode` setting stays.
 
 ## Hard prerequisite
 

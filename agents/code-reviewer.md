@@ -36,7 +36,7 @@ project specifics at runtime; never assume them:
 
 - **`.claude/CLAUDE.md`** — project conventions, stack, environment rules, model policy, protected-file list, hard rules.
 - **`.claude/settings.json`** — tracker type, stack, enabled MCP, permission allowlist.
-- **`corpus.config.mjs`** — project constants (paths, tracker key, project slug).
+- **`scripts/corpus.config.mjs`** — project constants (paths, tracker key, project slug).
 - **`.claude/rules/*.md`** — governance rules, especially `security.md` (no hardcoded secrets, parameterized queries, input validation) and `frontmatter.md`.
 - **The frozen spec** for the task under review: `docs/claude_tasks/<NN_slug>.md` — its `## Schema reference` section is your first schema-validation source.
 - **`docs/project_chronicle.md`** — past incidents and lessons; cite specific entries as the grounding for your findings.

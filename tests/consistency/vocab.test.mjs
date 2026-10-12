@@ -153,7 +153,11 @@ test("activity-log contract: the skill's event table ≡ corpus.config EVENTS; p
 
   const exampleKeys = Object.keys(JSON.parse(skill.match(/```json\n([\s\S]+?)\n```/)[1]));
   assert.deepEqual(exampleKeys, LOG_FIELDS, "the §A example line must carry exactly LOG_FIELDS, in order");
-  for (const id of ["pm", "de", "da", "code-reviewer", "devils-advocate", "kb-curator", "linear-steward", "human"]) assert.ok(LOG_AGENTS.has(id), id);
+  const agentIds = readdirSync(agentsDir).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3));
+  sameSet(LOG_AGENTS, [...agentIds, "human"], "LOG_AGENTS (the plugin's agents + human)");
+  const agentBullet = skill.slice(skill.indexOf("- `agent` —"), skill.indexOf("- `model` —"));
+  const documented = [...agentBullet.matchAll(/`([a-z][a-z-]*)`/g)].map((m) => m[1]).filter((t) => t !== "agent" && t !== "null");
+  sameSet(documented, LOG_AGENTS, "log-activity's `agent` field list");
 });
 
 // --- One truth per format (CRI-1156) -------------------------------------------------------------------
@@ -239,7 +243,7 @@ test("the DE self-review checklist and the report template's self-review table c
 
 test("teammate protocol: one rule, pointed to by every teammate agent, restated by none", () => {
   assert.ok(existsSync(join(TEMPLATES, ".claude", "rules", "teammate.md.template")));
-  for (const name of ["de", "da", "data-reviewer", "devils-advocate", "code-reviewer"]) {
+  for (const name of ["de", "da", "devils-advocate", "code-reviewer"]) {
     const text = read(join(agentsDir, `${name}.md`));
     assert.match(text, /\.claude\/rules\/teammate\.md/, `${name}.md must point to the teammate rule`);
     assert.ok(!/^## (Teammate Protocol|Session Start Checklist|Record Findings in the Corpus|Reference Files|Reference)\s*$/m.test(text),
