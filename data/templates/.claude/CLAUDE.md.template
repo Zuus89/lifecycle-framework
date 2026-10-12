@@ -48,31 +48,30 @@ You are an expert. Communicate as one:
 
 ## 2. Model Policy
 
-The orchestration pattern: an **Opus orchestrator coordinating worker agents**, each in its own context window,
-with **read-only advisory/cleanup roles on a cheaper model**. Cost follows criticality.
+The orchestration pattern: an **Opus orchestrator coordinating worker agents**, each in its own context window.
 
 | Role | Agent | Model | How it is set |
 |------|-------|-------|---------------|
 | Project Manager / orchestrator | `pm` | **session model (run Opus)** | `/model` or the `model` key in `.claude/settings.json` — **not** agent frontmatter. PM *is* the top-level session, so a frontmatter pin would not apply. Lock the session to Opus via `/model`. |
-| Development Engineer | `de` | `{{MODEL_DE}}` | pinned in `de` agent frontmatter |
-| Data / QA Analyst | `da` | `{{MODEL_DA}}` | pinned in `da` agent frontmatter |
-| Code reviewer (deploy gate) | `code-reviewer` | `{{MODEL_CODE_REVIEWER}}` | pinned in `code-reviewer` agent frontmatter |
-| Devil's advocate (adversary) | `devils-advocate` | `{{MODEL_DEVILS_ADVOCATE}}` | pinned in `devils-advocate` agent frontmatter |
-| Corpus steward (read-only) | `corpus-steward` | `sonnet` | pinned in agent frontmatter |
+| Development Engineer | `de` | `{{MODEL_DE}}` | pinned in the plugin's `de` agent frontmatter |
+| Data / QA Analyst | `da` | `{{MODEL_DA}}` | pinned in the plugin's `da` agent frontmatter |
+| Code reviewer (deploy gate) | `code-reviewer` | `{{MODEL_CODE_REVIEWER}}` | pinned in the plugin's `code-reviewer` agent frontmatter |
+| Devil's advocate (adversary) | `devils-advocate` | `{{MODEL_DEVILS_ADVOCATE}}` | pinned in the plugin's `devils-advocate` agent frontmatter |
 | KB curator (at-close, writes KB only) | `kb-curator` | `claude-opus-5` | pinned in agent frontmatter; ON by default |
 | Linear steward (project hygiene, structural fields only) | `linear-steward` | `claude-opus-5` | pinned in agent frontmatter; OFF by default (`agents.linear_steward`) |
-| Dead-code cleanup (read-only) | `dead-code-cleanup` | `sonnet` | pinned in agent frontmatter |
-| Data reviewer (strict-SoD opt-in) | `data-reviewer` | `claude-opus-4-8` | pinned in agent frontmatter; OFF by default |
 
 **Notes:**
-- The reasoning-critical and checked-downstream roles (DE, DA, code-reviewer, devils-advocate) run Opus.
-  The read-only sweep roles (corpus-steward, dead-code-cleanup) run Sonnet — the documented sufficient case
-  and the real cost saver. The **kb-curator** runs Opus despite being an optional role: its dedup/update
-  verdicts write directly to the KB without a proposal gate — the only human check is the close-commit diff.
+- **This table records the pins; it does not set them.** Every agent's model is the `model:` line of its plugin
+  frontmatter, copied here by `/lifecycle-init`. Editing this table changes nothing: a pin changes in the plugin, and a
+  single spawn can override it with the Agent tool's `model` parameter.
+- Every agent runs Opus: the reasoning-critical roles (DE, DA, code-reviewer, devils-advocate) and the
+  **kb-curator**, whose dedup/update verdicts write to the KB without a proposal gate — the only human check is
+  the close-commit diff.
 - **Version-pinned intentionally** where the frontmatter names a specific Opus build: re-evaluate the pin on
   the next Opus release rather than letting an alias auto-upgrade.
-- **Skills** (`/close-task`, `/log-activity`, `/council`, `/new-doc`, `/audit-corpus`) inherit
-  the invoking agent's model — they are markdown injection, not subagent spawns. No skill-level model config.
+- **Skills** (`/close-task`, `/log-activity`, `/council`, `/new-doc`, `/audit-corpus`, `/dead-code`, `/handshake`)
+  inherit the invoking agent's model — they are markdown injection, not subagent spawns. No skill-level model
+  config.
 
 ---
 
@@ -95,8 +94,9 @@ This file and `.claude/rules/*.md` are already loaded by Claude Code. Then, in o
 
 Everything else is read when a step needs it, never by reflex: Step 3 reads `docs/strategy.md`,
 `docs/architecture.md` and `docs/project_chronicle.md` before writing an M or L spec; a topic search greps the corpus
-— **including `docs/knowledge_base/` (check `aliases:` too)** — or runs `node scripts/affects-lookup.mjs <path>`; a
-new task reads the tracker ({{TRACKER}} — the source of truth for ticket status). The corpus *is* the memory; there
+— **including `docs/knowledge_base/` (check `aliases:` too)** — or runs `node scripts/affects-lookup.mjs <object-id>`
+(an `affects:` id, not a path); a new task reads the tracker ({{TRACKER}} — the source of truth for ticket status).
+The corpus *is* the memory; there
 is no `search_nodes` / `read_graph`. **No snapshot** (fresh clone, first session) → read the tail of
 `docs/project_chronicle.md`, `TODO.md` and the tracker instead; the next close writes one.
 
@@ -106,8 +106,8 @@ is no `search_nodes` / `read_graph`. **No snapshot** (fresh clone, first session
 
 **One Claude Code session runs exactly one task, Brief → Close — never a whole ticket.** A ticket is the
 umbrella (many tasks → many sessions). A task too big for one session uses a **transitory close** at each
-boundary that persists the snapshot and runs the kb-curator (durable knowledge → `docs/knowledge_base/`), so the
-next session resumes exactly where this one stopped.
+boundary that persists the snapshot (and runs the kb-curator when the session produced a report, spec or review),
+so the next session resumes exactly where this one stopped.
 
 Three phases: **Frame (1–4) · Challenge then build (5–7) · Verify and close (8–10).**
 
@@ -143,10 +143,12 @@ Three phases: **Frame (1–4) · Challenge then build (5–7) · Verify and clos
 - **Bias control (the spine):** the test is written before the code (Step 4), frozen before implementation
   (Step 6), and run against a result it could not influence (Step 8) → the verdict is binary and bias-free.
 - **Separation of duties (collapsed, default):** the DA designs *and* runs the frozen test; the code-reviewer
-  reviews code and never fixes it. *Strict mode* (a separate `data-reviewer` runs the frozen test while the DA
-  only designs it) is an opt-in, OFF by default.
-- **Three review layers:** (1) DE self-review in session → (2) PM review vs spec in session → (3) always-on,
-  bias-free CI code-review on the PR diff.
+  reviews code and never fixes it. *Strict mode* (`agents.separation_of_duties_mode = strict`, OFF by default):
+  a second, fresh `da` that never saw the design runs the frozen test.
+- **Review layers:** (1) the DE's self-review checklist → (2) the `code-reviewer` gate, a fresh context whose
+  deploy verdict any CRITICAL finding blocks, before any production commit → (3) the PM's check against the spec,
+  plus the frozen alpha test at Step 8. CI is a corpus gate, not a code review: on a pull request that touches docs
+  or the corpus scripts it validates frontmatter and fails on a stale INDEX.
 - **Alpha-test exemption:** a task with no behavioral change (docs, config, pure refactor) declares
   `alpha test: N/A — no behavioral change` as the explicit Step 4 artifact.
 - A step is not done until its `/log-activity` line is written.
@@ -180,16 +182,16 @@ Agent-Teams teammates, or invoked explicitly.
 | **Code reviewer** | `code-reviewer` *(formerly heimdall)* | The mandatory code-review QA gate before any deploy/commit of production code (docs-only changes exempt). Read-only (writes only its own review file). Static validation + severity-tiered checklist (CRITICAL / WARNING / SUGGESTION / SCHEMA) → a binary verdict. **Any CRITICAL = NOT SAFE TO DEPLOY.** | Fix bugs; write code; approve its own work. |
 | **Devil's advocate** | `devils-advocate` *(formerly loki)* | Stress-test **reasoning, not code**. Fires automatically at Step 5 in parallel with the DE review; **mandatory on every Council**; optional before irreversible actions. Output: a ranked list of concrete objections. **Grounded-Dissent Protocol:** every objection cites evidence (file:line, data row, memory incident, architecture principle, hard rule, chronicle problem) or it is discarded. | Propose solutions; implement; **ever approve**. |
 
-### Optional roles (toggled at scaffold time)
+### Optional roles (toggled in `.claude/settings.json → agents`)
 
 | Role | Agent | Mandate | Default |
 |------|-------|---------|---------|
-| **Corpus steward** | `corpus-steward` *(formerly mimir)* | Read-only docs-governance archival steward (PROPOSAL MODE). Sweeps `docs/`, writes a dated archival/cleanup manifest with an exhaustive inbound-reference safety check + a never-archive exclusion set. **Never moves or deletes** — the PM executes. | ON |
-| **KB curator** | `kb-curator` | At every `/close-task` variant (Full, Research, Transitory), folds the session's durable knowledge into `docs/knowledge_base/`: notability gate, evidence-cited dedup ladder, stale articles rewritten in place, new topics from the `kb_article` template, append-only `## Sources` provenance. **WRITES — but only under `docs/knowledge_base/`**; changes ride the close commit. Never touches INDEX/log/chronicle/snapshot. | ON |
+| **KB curator** | `kb-curator` | At every Full and Research `/close-task` (and a Transitory one when the session produced a report, spec or review), folds the session's durable knowledge into `docs/knowledge_base/`: notability gate, evidence-cited dedup ladder, stale articles rewritten in place, new topics from the `kb_article` template, append-only `## Sources` provenance. **WRITES — but only under `docs/knowledge_base/`**; changes ride the close commit. Never touches INDEX/log/chronicle/snapshot. | ON |
 | **Linear steward** | `linear-steward` | Keeps **one Linear project** to the workspace taxonomy (Initiative → Project → Issue → Sub-issue): at `/close-task` the project of the ticket being closed, on a detector drift report this repo's `tracker.project`. **WRITES structural fields only, inside that project** (its status/dates/initiative, its issues' parent and title prefix, labels read-compute-write, orphan issues whose prefix unambiguously belongs to it); **proposes** deletions, closures and merges with evidence; never touches other projects' tickets; a whole-workspace sweep only on explicit request; more than 20 writes in a run → stops and asks. Its sweep record is a Linear document, not a repo file. Linear tracker only; the detector needs `LINEAR_API_KEY` in `.claude/.local/secrets.env`. | OFF |
-| **Scout** | `scout` | Pre-edit blast-radius / dependency analysis: maps inbound deps (who imports me = blast radius) + outbound deps, flags circular-dependency risk and boundary violations before an edit. | OFF |
-| **Dead-code cleanup** | `dead-code-cleanup` *(formerly fenrir)* | Dead-code hunter: unused functions/imports/modules, orphaned files, dead endpoints, stale TODO/FIXME. Read-only by default; deletes only on explicit approval, then re-validates. | OFF |
-| **Data reviewer** | `data-reviewer` | **Strict-SoD opt-in only.** Runs the frozen alpha test at Step 8 while the DA only designs it (full separation of duties). | OFF |
+
+What used to be separate optional agents now lives in the core: the pre-edit blast-radius check is
+`.claude/rules/search-first.md` (whoever edits runs it); the dead-code hunt is the `/dead-code` skill; the
+docs-archival proposal is `/audit-corpus --archival`; strict separation of duties is a second, fresh `da`.
 
 > **Hard prerequisite:** all orchestration depends on **Agent Teams**
 > (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.claude/settings.json`). Without it the PM cannot spawn
@@ -203,11 +205,12 @@ Plugin-resident skills (installed once; triggered by slash command or the `Skill
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
-| Close Task | `/close-task` | Step-10 closer: append chronicle, overwrite context_snapshot, status-sync `TODO.md`, conditional `architecture.md` re-audit, rebuild INDEX, move the ticket to Done + Completion Notes. **Every variant runs the kb-curator (if enabled) to fold session knowledge into `docs/knowledge_base/`.** The chronicle + snapshot + KB + INDEX *are* the persisted memory. Variants: full / research / transitory multi-session. With `agents.linear_steward` on (Linear tracker), the linear-steward tidies the closing ticket's project after the kb-curator. |
-| Log Activity | `/log-activity` | The single logger. Append-only JSONL writer: one record per lifecycle step → `docs/activity_log.jsonl` (contract: `LOG_FIELDS` / `EVENTS` in `corpus.config.mjs`). With `--tracker`, the same call also posts the mirrored {{TRACKER}} comment cross-referenced by id and applies state markers — reserve it for milestones (Step 1 start, blockers, decisions, Step 10 close). Never moves a ticket to Done. Commits are not logged — `git log` is their record. |
+| Close Task | `/close-task` | Step-10 closer: append chronicle, overwrite context_snapshot, status-sync `TODO.md`, conditional `architecture.md` re-audit, rebuild INDEX, move the ticket to Done + Completion Notes. **Full and Research closes run the kb-curator (if enabled) to fold session knowledge into `docs/knowledge_base/`; a Transitory close runs it only when the session produced a report, spec or review.** The chronicle + snapshot + KB + INDEX *are* the persisted memory. Variants: full / research / transitory multi-session. With `agents.linear_steward` on (Linear tracker), the linear-steward tidies the closing ticket's project after the kb-curator. |
+| Log Activity | `/log-activity` | The single logger. Append-only JSONL writer: one record per lifecycle step → `docs/activity_log.jsonl` (contract: `LOG_FIELDS` / `EVENTS` in `scripts/corpus.config.mjs`). With `--tracker`, the same call also posts the mirrored {{TRACKER}} comment cross-referenced by id and applies state markers — reserve it for milestones (Step 1 start, blockers, decisions, Step 10 close). Never moves a ticket to Done. Commits are not logged — `git log` is their record. |
 | Council | `/council` | 7-step multi-agent deliberation for contested / architectural / irreversible decisions. The devils-advocate is a mandatory participant. Writes a council doc with explicit reopen criteria. |
 | New Doc | `/new-doc` | Scaffolds a governed `.md` (spec, alpha_test, report, review_*, council, handoff) with valid frontmatter from `docs/_templates/`, then validates. |
-| Audit Corpus | `/audit-corpus` | Frontmatter validation across all governed `.md` + rebuild `INDEX.md`/`index.json` + a tiered (High/Medium/Low) health report to `docs/audits/`. High findings include sealed alpha tests modified after sealing. |
+| Audit Corpus | `/audit-corpus` | Frontmatter validation across all governed `.md` + rebuild `INDEX.md`/`index.json` + a tiered (High/Medium/Low) health report to `docs/audits/`. High findings include sealed alpha tests modified after sealing. With `--archival`, also a proposal-only archival manifest (closed-ticket bundles, superseded docs) — it never moves a file; the PM executes after your yes. |
+| Dead Code | `/dead-code` | Dead-code hunt with the stack's own tools plus grep: unused symbols and imports, orphaned files, dead endpoints, stale TODO/FIXME, each classified Confirmed / Suspicious / False-positive with evidence. Read-only; deletes Confirmed findings only on your explicit approval, then re-runs build, lint and tests. |
 | Handshake | `/handshake` | Two-machine transfer (`out` / `in` / auto-detect), transport-aware per `handshake.transport`: **synced-folder** = transitory close + sync-verification + marker; on arrival conflict-scan, git integrity, environment verification. **git-remote** = `wip(<TICKET>):` transport commit + handoff doc + push; on arrival ff-pull + snapshot regeneration + verification. Never force-push, never stash, never transports secret values, never mutates machine config without confirmation. |
 
 ---
@@ -228,7 +231,7 @@ Plugin-resident skills (installed once; triggered by slash command or the `Skill
 
 - **The tracker is the source of truth for ticket status.** `TODO.md` mirrors it as the dependency-ordered
   roadmap; agents perform **status-sync only**, via `/close-task` — never ad-hoc edits.
-- The connection identity lives here, in §12.2, and in `corpus.config.mjs`. The tracker MCP needs **no token**
+- The connection identity lives here, in §12.2, and in `scripts/corpus.config.mjs`. The tracker MCP needs **no token**
   (OAuth via `/mcp`, per machine — §12.4); a REST API token exists only if a script needs the API directly, and
   then only in the gitignored `.claude/.local/secrets.env` — never committed, never hardcoded.
 - `/log-activity --tracker` and `/close-task` branch on this setting (Jira via the Atlassian MCP, or Linear via
@@ -270,9 +273,10 @@ identifiers, and project keys are read from config files, environment variables,
 (`--warn-only --staged`; never blocks; a commit with no `.md` staged starts no Node at all). There is no post-commit or pre-push hook: `git log` is the
 record of commits, and INDEX freshness is checked by CI (and rebuilt by `/close-task`).
 
-**CI (`.github/workflows/`):** `lint-frontmatter.yml` is mandatory — one job on every pull request: strict
-frontmatter validation (no `--warn-only`) + INDEX-freshness verify on Node 24. It installs only js-yaml, never the
-project's dependency tree.
+**CI (`.github/workflows/`):** `lint-frontmatter.yml` is mandatory — one job on every pull request that touches
+a `.md` file, `scripts/` or the workflow itself: strict frontmatter validation (no `--warn-only`) + INDEX-freshness
+verify on Node 24. It installs only js-yaml, never the project's dependency tree. It is a corpus gate, not a code
+review — the code review is the `code-reviewer` gate before the commit.
 
 ---
 
@@ -287,10 +291,10 @@ CLAUDE.md holds **governance only**. Technical content lives in `docs/`. Do not 
 | `docs/project_chronicle.md` | Append-only history, one entry per task; cited by reviewers as incident history. | **append-only** |
 | `docs/context_snapshot.md` | Single "where we are" handoff; overwritten each close; usually gitignored. | normal |
 | `docs/activity_log.jsonl` | Machine-readable audit trail, one line per lifecycle step (commits live in `git log`). | **append-only** |
-| `docs/INDEX.md` + `docs/index.json` | Autogenerated queryable corpus index; freshness-gated by CI on every pull request. | autogen |
+| `docs/INDEX.md` + `docs/index.json` | Autogenerated queryable corpus index; freshness-gated by CI on every pull request that touches docs. | autogen |
 | `docs/knowledge_base/` | Curated domain knowledge (glossary, data dictionary, business rules); grounds the agents. | normal |
 | `docs/claude_tasks/` | Lifecycle artifacts: specs + `alpha_tests/` (frozen), `reviews/`, `reports/`, `council/`, `handoffs/` (durable twin of the snapshot — `/handshake out` on git-remote transport), `archive/`. | normal |
-| `docs/audits/` | `/audit-corpus` reports + corpus-steward manifests. | normal |
+| `docs/audits/` | `/audit-corpus` health reports + `--archival` proposal manifests. | normal |
 | `docs/_templates/` | Frontmatter-valid templates `/new-doc` scaffolds from. | normal |
 | `.claude/rules/*.md` | The governance rule set: `code-style`, `dependency-governance`, `frontmatter` (the taxonomy SSOT), `git-workflow`, `mcp-usage`, `search-first`, `security`, `teammate` (what every spawned teammate shares), `testing`. | normal |
 
@@ -341,7 +345,7 @@ Changes to these require explicit human approval (the PM proposes; the human aut
 How **this** project is wired to the outside world: Git (the repo it runs in), the tracker (where tickets
 live), and Databricks (the data warehouse, when the stack is data). Identity only — **every credential lives
 in the gitignored `.claude/.local/secrets.env`, never here and never in source** (Hard Rule 7). Mirrored,
-secret-free, into `.claude/settings.json` and `corpus.config.mjs`.
+secret-free, into `.claude/settings.json` and `scripts/corpus.config.mjs`.
 
 ### 12.1 Git
 
@@ -360,8 +364,9 @@ secret-free, into `.claude/settings.json` and `corpus.config.mjs`.
   task; a ticket spanning several sessions keeps the same branch until it merges.
 - Branch names follow the by-stack convention in §8 (`feat/{{TRACKER_KEY}}-NNN-slug` for code; data adds
   `research/{{TRACKER_KEY}}-NNN-slug` for analysis-only work).
-- On `{{GIT_HOST}}`: the PR is the merge unit and the CI gate (`lint-frontmatter.yml`) plus the bias-free
-  code-review layer run on its diff. Never force-push, never reset shared history (Hard Rule 8).
+- On `{{GIT_HOST}}`: the PR is the merge unit and the CI corpus gate (`lint-frontmatter.yml`) runs on it; the code
+  review already happened at the `code-reviewer` gate before the commit. Never force-push, never reset shared
+  history (Hard Rule 8).
 - Git identity (`user.name` / `user.email`) must be set — commits and the activity log depend on it.
 
 ### 12.2 Tracker
@@ -407,7 +412,7 @@ Per-env identity (keyed by env; not secrets, but **config-only — never hardcod
 
 **Data rules (non-negotiable):**
 - **Never hardcode credentials, catalog names, warehouse ids, or workspace URLs** — they live in
-  `~/.databrickscfg` profiles, `.claude/settings.json` / `corpus.config.mjs`, or env vars. Code reads them;
+  `~/.databrickscfg` profiles, `.claude/settings.json` / `scripts/corpus.config.mjs`, or env vars. Code reads them;
   it never embeds them (Hard Rule 7).
 - **Local SQL via the `databricks-sql-connector` Python package** — the CLI has no `sql` subcommand.
 - **OAuth via `w.config.authenticate()`** for tokens — never `w.config.token` or a raw token string. Prefer

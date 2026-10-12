@@ -82,7 +82,8 @@ memory server. There is **no `search_nodes` / `read_graph` / `create_entities`**
 - `docs/project_chronicle.md` (append-only) — decisions & history.
 - `docs/context_snapshot.md` — current-state handoff for the next session.
 - `docs/knowledge_base/` — durable topic articles (glossary, business rules, gotchas, how-tos),
-  curated by the kb-curator at every `/close-task`.
+  curated by the kb-curator at `/close-task` (every Full and Research close; a Transitory one only with a report,
+  spec or review).
 - `docs/activity_log.jsonl` — per-step machine log.
 - `docs/INDEX.md` + `docs/index.json` — queryable index (`type`/`status`/`authority`,
   `depends_on`/`affects` relations).
@@ -92,7 +93,8 @@ memory server. There is **no `search_nodes` / `read_graph` / `create_entities`**
 - Read `docs/project_chronicle.md` + `docs/context_snapshot.md` + the INDEX (`docs/INDEX.md`).
 - For a topic: check `docs/knowledge_base/` for a topic article first (grep titles AND each
   article's `aliases:`), then grep the corpus / read the INDEX, and run
-  `node scripts/affects-lookup.mjs <path>` to see what depends on what you're about to change.
+  `node scripts/affects-lookup.mjs <object-id>` (an `affects:` id, not a path) to see what depends on what you're
+  about to change.
 
 **RECORD — how an agent persists (after a completed task):** write to the corpus — the task
 report (`docs/claude_tasks/reports/`), the reviews, and (via `/close-task`) the append to
@@ -188,7 +190,7 @@ subcommand).
 **Auth & config (never hardcode in code — these live in config):**
 - Profile: `{{DATABRICKS_PROFILE}}` (default env for everyday work), from `~/.databrickscfg`.
 - Environments in use: `{{DATABRICKS_ENVS}}`. Default host: `{{DATABRICKS_DEFAULT_HOST}}`.
-- Per-env hosts: see `corpus.config.mjs` / `.claude/settings.json` `databricks.hosts`.
+- Per-env hosts: see `scripts/corpus.config.mjs` / `.claude/settings.json` `databricks.hosts`.
 - Per-env warehouse ids: see `databricks.warehouses` in the same files.
 - Use OAuth via `w.config.authenticate()` — never `w.config.token` or a raw token string.
 - On Windows, set `PYTHONIOENCODING=utf-8` (lives in `.claude/.local/secrets.env`) for

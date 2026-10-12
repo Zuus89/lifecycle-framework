@@ -1,6 +1,6 @@
 ---
 name: audit-corpus
-description: Corpus health check — validate all .md frontmatter, rebuild docs/INDEX.md + docs/index.json, and write a tiered health report to docs/audits/. Findings are tiered High/Medium/Low; High includes frontmatter parse errors, dangling refs, broken mandatory-read paths, and sealed alpha tests modified after sealing (the freeze-rule enforcement). Use weekly, after a batch of .md edits, or after a /close-task that changed frontmatter broadly. Triggers include "/audit-corpus", "audit the corpus", "rebuild the index", "check frontmatter".
+description: Corpus health check — validate all .md frontmatter, rebuild docs/INDEX.md + docs/index.json, and write a tiered health report to docs/audits/. Findings are tiered High/Medium/Low; High includes frontmatter parse errors, dangling refs, broken mandatory-read paths, sealed alpha tests modified after sealing (the freeze-rule enforcement) and tier-S tasks that skipped the gate. With --archival it also writes a proposal-only archival manifest (closed-ticket bundles, superseded docs, consolidation candidates) — it never moves a file. Use weekly, after a batch of .md edits, or after a /close-task that changed frontmatter broadly. Triggers include "/audit-corpus", "audit the corpus", "rebuild the index", "check frontmatter", "archival sweep", "propose what to archive".
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 
@@ -18,7 +18,7 @@ Run **weekly**, after any large batch of `.md` edits, or after a `/close-task` t
 > `scripts/validate-frontmatter.mjs` + `scripts/build-index.mjs`
 > **Output:** Console summary + `docs/INDEX.md` + `docs/index.json` + `docs/audits/<YYYY-WW>_health_audit.md`
 
-The corpus engine lives in the **project repo** (`scripts/*.mjs` + `corpus.config.mjs`), not in the plugin, because the same scripts are called by git hooks and CI by relative path. Always call them with the repo-relative path shown below.
+The corpus engine lives in the **project repo** (`scripts/*.mjs` + `scripts/corpus.config.mjs`), not in the plugin, because the same scripts are called by git hooks and CI by relative path. Always call them with the repo-relative path shown below.
 
 ---
 
@@ -26,6 +26,8 @@ The corpus engine lives in the **project repo** (`scripts/*.mjs` + `corpus.confi
 
 - `/audit-corpus`
 - "audit the corpus" / "rebuild the index" / "check frontmatter" / "audita el corpus"
+- `/audit-corpus --archival` — "archival sweep", "propose what to archive", "limpia el corpus": Steps 1–5, the
+  archival proposal (below), then Step 6, which commits the manifest with the health report.
 
 ---
 
@@ -84,12 +86,50 @@ The corpus engine lives in the **project repo** (`scripts/*.mjs` + `corpus.confi
    - Index rebuild stats (files indexed, elapsed time).
    - Delta vs. the previous week's audit (new findings, resolved findings).
 
-6. **Commit** (only if **no High findings remain**):
+6. **Commit** (only if **no High findings remain**). The health report (and an `--archival` manifest) are governed
+   docs and the INDEX lists only tracked files — stage them, rebuild, then commit, or the committed INDEX misses
+   them and the CI freshness check fails:
    ```
-   git add docs/INDEX.md docs/index.json docs/audits/
+   git add docs/audits/
+   node scripts/build-index.mjs
+   git add docs/INDEX.md docs/index.json
    git commit -m "docs: corpus audit <YYYY-WW> — index rebuilt, N findings"
    ```
-   Use the project's commit convention from `.claude/rules/git-workflow.md`; if the project ties commits to a ticket prefix, read that prefix from `corpus.config.mjs` / `CLAUDE.md` rather than hardcoding one.
+   Use the project's commit convention from `.claude/rules/git-workflow.md`; if the project ties commits to a ticket prefix, read that prefix from `scripts/corpus.config.mjs` / `CLAUDE.md` rather than hardcoding one.
+
+---
+
+## Archival proposal (`--archival`)
+
+A **proposal-only** sweep of `docs/`: it writes one dated manifest and never moves, renames, edits or deletes a file —
+the PM executes the moves after the human approves the manifest. Run it after Step 5 (Step 4 left the INDEX
+fresh); Step 6 then commits the manifest with the health report.
+
+**Eligible** (cite the rule for every proposal):
+
+| Rule | Candidate | Signal |
+|---|---|---|
+| **E1 — closed-ticket bundle** | a spec with `status: done` + the reports/reviews sharing its `ticket` / `task_number` | the spec's own frontmatter `status:`, read directly — never a derived field in `index.json` (last-writer-wins collisions there) |
+| **E2 — superseded / abandoned** | any doc with `status: superseded \| abandoned` or `authority: superseded`, not already archived | frontmatter, read directly |
+| **E3 — consolidation** | ≥ 2 docs covering the same topic with overlapping content | judgment — flag for the human, never bundle |
+
+Age is a soft signal; the trigger is *closed and unreferenced* (recency from `docs/activity_log.jsonl`, else `updated:`).
+
+**Never archive** — a candidate is disqualified, and listed as kept with the rule that fired, if ANY holds:
+1. It is protected, mandatory-read or append-only per `.claude/CLAUDE.md` (the chronicle, the activity log, …).
+2. `node scripts/affects-lookup.mjs` shows it is an `authority: ssot` object with live consumers.
+3. An **open** spec references its ticket in `depends_on:` or `supersedes:` — grep for the ticket id there, then read
+   each referencing spec's `status:` directly; not `done`/`abandoned` → load-bearing.
+4. A grep **across all of `docs/**/*.md`** — not just `docs/claude_tasks/` — finds its path or its bare ticket id in a
+   non-archived file outside its own bundle (reviews and reports of other tickets count). A missed inbound reference is
+   the worst failure mode: never write "no inbound refs" without having run that grep over the whole tree.
+5. It is `docs/context_snapshot.md`, the INDEX pair, or any other generated file.
+
+**Destination:** task bundles → `docs/claude_tasks/archive/`; standalone docs → `docs/archive/` (or the precedent the
+repo already uses). **Manifest:** `docs/audits/YYYY-MM-DD_archival_proposal.md` (`type: audit`, `status: snapshot`,
+`authority: secondary`) with three tables — *Proposed* (paths · rule · evidence · inbound-reference result ·
+destination · risk), *Consolidation flags* (docs · overlap · suggestion), *Kept* (path · rule that fired). An empty
+*Proposed* table is a valid result. Stop after the manifest; the moves are the PM's, after the human's yes.
 
 ---
 
@@ -101,7 +141,7 @@ If the project wants a recurring audit, register it once via the `/schedule` ski
 /schedule create --cron "0 13 * * *" --invoke "/audit-corpus" --commit-output --label "<project>-corpus-audit"
 ```
 
-The drift window between scheduled runs is the cron interval; freshness is already enforced by the `lint-frontmatter` CI gate on every pull request (it rebuilds the INDEX and fails on drift) and by `/close-task`, which rebuilds the INDEX whenever frontmatter changed.
+The drift window between scheduled runs is the cron interval; freshness is already enforced by the `lint-frontmatter` CI gate on every pull request that touches docs (it rebuilds the INDEX and fails on drift) and by `/close-task`, which rebuilds the INDEX whenever frontmatter changed.
 
 ---
 
@@ -122,6 +162,6 @@ The drift window between scheduled runs is the cron interval; freshness is alrea
 - Validator: `scripts/validate-frontmatter.mjs`
 - Indexer: `scripts/build-index.mjs`
 - Affects lookup: `scripts/affects-lookup.mjs <object>`
-- Per-project corpus constants: `corpus.config.mjs`
+- Per-project corpus constants: `scripts/corpus.config.mjs`
 - Activity log (for the silence check): `docs/activity_log.jsonl` — contract in the `/log-activity` skill
 - Alpha-test freeze rule: `.claude/CLAUDE.md` (lifecycle Step 6 seal / Step 8 run) + Hard rules above

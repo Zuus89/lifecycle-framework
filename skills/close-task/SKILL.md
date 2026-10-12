@@ -1,6 +1,6 @@
 ---
 name: close-task
-description: Step-10 lifecycle closer. Three variants — Full lifecycle close (spec + alpha test + report done, human-validated at Step 9), Research / non-lifecycle close (investigation, spike, governance/docs — no spec, no alpha test, no forced ticket Done), and Transitory close (multi-session boundary — snapshot + KB curation). At EVERY variant the kb-curator (if enabled) folds the session's durable knowledge into docs/knowledge_base/. Refreshes the context snapshot and TODO, appends to the chronicle on a decision of record, conditionally re-audits architecture from live sources, rebuilds the INDEX, and moves the ticket to Done. The chronicle + context_snapshot + knowledge base ARE the persisted memory. Tracker-parameterized (Jira | Linear | none, read from .claude/settings.json). Honors protected (proposed for human authorization) and append-only doc rules.
+description: Step-10 lifecycle closer. Three variants — Full lifecycle close (spec + alpha test + report done, human-validated at Step 9), Research / non-lifecycle close (investigation, spike, governance/docs — no spec, no alpha test, no forced ticket Done), and Transitory close (multi-session boundary — snapshot, plus KB curation only when the session produced a report, spec or review). The kb-curator (if enabled) folds the session's durable knowledge into docs/knowledge_base/ at every Full and Research close, and at a Transitory close only when the session produced a report, spec or review. Refreshes the context snapshot and TODO, appends to the chronicle on a decision of record, conditionally re-audits architecture from live sources, rebuilds the INDEX, and moves the ticket to Done. The chronicle + context_snapshot + knowledge base ARE the persisted memory. Tracker-parameterized (Jira | Linear | none, read from .claude/settings.json). Honors protected (proposed for human authorization) and append-only doc rules.
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, TodoWrite
 ---
 
@@ -15,9 +15,9 @@ assume a stack, tracker, table, or path. Read these first, then act:
 
 - **`.claude/settings.json`** — `tracker` (`jira | linear | none`) and its connection identity, `stack`
   (`web | data | generic`), enabled MCP servers, and the **`agents` roster block** (`agents.kb_curator`,
-  `agents.corpus_steward`, …, `agents.separation_of_duties_mode`). An absent block or key means the documented
-  defaults: `kb-curator` and `corpus-steward` ON, the rest OFF, SoD `collapsed`.
-- **`corpus.config.mjs`** — per-project paths, ticket prefix, project slug, the corpus script names.
+  `agents.linear_steward`, `agents.separation_of_duties_mode`). An absent block or key means the documented
+  defaults: `kb-curator` ON, `linear-steward` OFF, SoD `collapsed`.
+- **`scripts/corpus.config.mjs`** — per-project paths, ticket prefix, project slug, the corpus script names.
 - **`CLAUDE.md`** — model policy, lifecycle numbering, role roster, communication language, protected-doc list.
 - **`.claude/rules/*.md`** — especially `frontmatter.md` (the taxonomy SSOT) and `mcp-usage.md` (MCP server usage).
 
@@ -31,7 +31,7 @@ The variant decides which sections run. Choose before touching any file.
 |---|---|---|
 | **Full lifecycle close** | A task is done and the human validated it at Step 9 — tier M/L: spec + alpha test + report exist; tier S: the short spec, plus the code-reviewer review when production code changed | §1 (lifecycle read) + §2 + §3 + §4 + §5 |
 | **Research / non-lifecycle close** | Investigation, spike, or governance/docs work — no spec, no alpha test, maybe no ticket | §1 (research read) + §2 + §4 + §5. **SKIP §3** (no spec flip/archive, no alpha test, no forced ticket Done) |
-| **Transitory close** | A multi-session task at a session boundary — it continues next session | ONLY: overwrite `docs/context_snapshot.md` + **KB curation (§2 "Knowledge-base curation")** + INDEX rebuild *if the curator wrote* + `/log-activity paused` + **§5 "Commit (Transitory close)"** (curation bundle, only if the curator wrote) + **§5 Report**. The snapshot IS the persisted memory the next session resumes from; the KB keeps what must outlive the task. **No** chronicle, **no** ticket Done, the spec stays `in_progress` |
+| **Transitory close** | A multi-session task at a session boundary — it continues next session | ONLY: overwrite `docs/context_snapshot.md` + **KB curation (§2 "Knowledge-base curation") — only if the session produced a report, spec or review** + the linear-steward (§2, if enabled) + INDEX rebuild *if the curator wrote* + `/log-activity paused` + **§5 "Commit (Transitory close)"** (curation bundle, only if the curator wrote) + **§5 Report**. The snapshot IS the persisted memory the next session resumes from; the KB keeps what must outlive the task. **No** chronicle, **no** ticket Done, the spec stays `in_progress` |
 
 A multi-session lifecycle task gets a **transitory close at each boundary** and **exactly one full close at the end**.
 
@@ -107,14 +107,21 @@ anything derivable from code or `git log`; secrets, tokens, hostnames, or infras
 The activity log is the audit trail; the chronicle + snapshot + report + KB articles are the distilled knowledge —
 keep them distinct.
 
-### Knowledge-base curation — kb-curator (ALL variants, including Transitory)
+### Knowledge-base curation — kb-curator (Full + Research; Transitory only with a report, spec or review)
+
+On a **Transitory** close, run it only when the session created or changed a report, a spec or a review
+(`docs/claude_tasks/reports/`, `docs/claude_tasks/reviews/`, or a spec in `docs/claude_tasks/` — check
+`git status --porcelain` and the session's commits). A session that produced none of them has nothing the KB
+needs yet, and it stays inside the next curator's diff window (below), so nothing is lost; say "KB curation: skipped (transitory, no
+report/spec/review)" in the close report.
 
 On a **tier-S** Full close, run it only if the DE's summary reported a lesson — a one-file change rarely produces
 durable knowledge; say "KB curation: skipped (tier S, no lesson)" in the close report otherwise.
 
 Read `agents.kb_curator` from `.claude/settings.json` (absent block/key = **enabled**, the default). If enabled,
 spawn the `kb-curator` teammate with a self-contained brief: the variant, the ticket id, the session id, and the
-diff window (last close → now). The curator ingests the session's outputs, applies its notability gate and dedup
+diff window: from the last `kb-curated` or `task-closed` line in `docs/activity_log.jsonl` to now — never from a
+`paused` line, so sessions whose Transitory close skipped curation stay in the window. The curator ingests the session's outputs, applies its notability gate and dedup
 ladder against the existing KB, and writes ONLY under `docs/knowledge_base/` — duplicates skipped, stale articles
 rewritten in place, genuinely new topics created from `docs/_templates/kb_article.md` — then validates its own
 files and returns a **filing plan**. Its changes ride the close commit, so the diff stays reviewable.
@@ -153,8 +160,10 @@ steward cannot finish, close anyway and say so: a failed sweep is skipped-and-re
 the flag is off or the tracker is not Linear, skip this subsection silently.
 
 ### Index rebuild — unconditional when frontmatter changed
-If any frontmatter changed this session, rebuild the corpus index by running the project's build-index script
-(its name is in `corpus.config.mjs` — typically `node scripts/build-index.mjs`). If
+If any frontmatter changed this session, **stage the new and changed governed docs first** (`git add` their
+explicit paths — the INDEX lists only tracked files, via `git ls-files`, so an unstaged new report or KB article
+would be missing and CI would fail on the drift), then rebuild the corpus index by running the project's
+build-index script (its name is in `scripts/corpus.config.mjs` — typically `node scripts/build-index.mjs`). If
 `git diff --quiet docs/INDEX.md docs/index.json` reports dirty, stage both and include them in the close commit.
 Make this **unconditional on frontmatter change** — a conditional rebuild leaves an intra-day drift window, and CI
 blocks the pull request if the INDEX drifts from source.
@@ -185,7 +194,7 @@ Read `tracker` from `.claude/settings.json`. Run exactly one branch.
 Use the Linear MCP wired at init (server `linear` from `settings.json → mcp.servers`; tools `mcp__linear__*` —
 tool names vary by server version: discover the exact ones from the session tool list before calling; the steps
 below use indicative names). The workspace/team/project identity is in `settings.json` /
-`corpus.config.mjs` — read it, do not hardcode.
+`scripts/corpus.config.mjs` — read it, do not hardcode.
 
 1. **Append Completion Notes** to the issue description (append, never replace). This is the canonical block —
    the Jira branch converts the same content to Jira markup:
@@ -207,13 +216,13 @@ below use indicative names). The workspace/team/project identity is in `settings
 #### If `tracker = jira`
 Use the Atlassian MCP wired at init (server `atlassian` from `settings.json → mcp.servers`; tools
 `mcp__atlassian__*`). Read the `cloud id` / site and project key from `settings.json` /
-`corpus.config.mjs`. Resolve the issue key from the spec's tracker id.
+`scripts/corpus.config.mjs`. Resolve the issue key from the spec's tracker id.
 
 1. **Append Completion Notes** to the issue description via `editJiraIssue` (fetch the current description with
    `getJiraIssue`, append the canonical block from the Linear branch above converted to Jira markup — `h2.`
    heading, `* *Field:* value` bullets — and write it back; do not overwrite prior content).
    (Also acceptable: post the block as a comment via `addCommentToJiraIssue` if the project convention is
-   comment-based completion notes — follow `corpus.config.mjs`.)
+   comment-based completion notes — follow `scripts/corpus.config.mjs`.)
 2. **Transition the issue to Done** — call `getTransitionsForJiraIssue` to find the transition id whose target is the
    Done status (the name varies per workflow: "Done", "Closed", "Resolved"), then `transitionJiraIssue` with that id.
    Never guess the transition id.
@@ -243,7 +252,7 @@ diff in chat and wait for the human's approval before applying it.
 | `docs/strategy.md` | a decision of record was made (new threshold, new approach, design change) | **PROTECTED.** Lands in the Decision Log. A `/council` verdict counts as approval for its own entry. Propose; human authorizes. |
 | `CLAUDE.md` | a governance-level reference changed (new skill, new convention, a TBD resolved) | **PROTECTED.** Propose the diff; wait for approval. |
 | repository doc-structure guide | the repo structure, folders, or an update protocol changed | PM-maintained SSOT; flag structural changes to the human. |
-| `docs/knowledge_base/` | — handled by the **kb-curator in §2 (all variants)** — do not update here in parallel | Manual edits are the human-directed exception. The confidentiality gate applies either way (no secrets, tokens, hostnames, or infrastructure identifiers). |
+| `docs/knowledge_base/` | — handled by the **kb-curator in §2** (Full and Research closes; a Transitory one only with a report, spec or review) — do not update here in parallel | Manual edits are the human-directed exception. The confidentiality gate applies either way (no secrets, tokens, hostnames, or infrastructure identifiers). |
 | `docs/schema/` (data stack only) | the data layer changed (gold tables, semantic model) | Re-audit the live source; keep the directory split the project defines. |
 | `README.md` | the repo-visitor-visible status changed (phase transition, major capability landed) | Normal doc. |
 

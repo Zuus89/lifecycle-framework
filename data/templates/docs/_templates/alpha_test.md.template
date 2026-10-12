@@ -21,7 +21,7 @@ sealed_date: null
 
 <!-- guidance: File goes in docs/claude_tasks/alpha_tests/NN_slug.md.
      Designed by the DA at Step 4 from the spec ONLY. Frozen (status: sealed) at Step 6.
-     Executed by the DA at Step 8 (or the data-reviewer in strict separation-of-duties mode).
+     Executed by the DA at Step 8 (in strict separation-of-duties mode, a second, fresh DA that never saw the design).
      THE DE NEVER TOUCHES THIS FILE (the alpha-test wall).
      status: draft | sealed | passed | failed.
      authority: secondary while draft — flips to ssot at sealing (the frozen test
@@ -80,16 +80,16 @@ Cases in this test derive ONLY from the spec — the DA must not read any implem
 
 ## Execution log (Step 8)
 
-<!-- guidance: THE Step 8 record — there is no separate validation report. Executed by the DA (or by the
-     data-reviewer in strict separation-of-duties mode): one row per case, verbatim actuals (values, output,
-     exit codes) as evidence, verdict binary. The runner also flips status: sealed → passed | failed and bumps
+<!-- guidance: THE Step 8 record — there is no separate validation report. Executed by the DA (in strict
+     separation-of-duties mode, a second, fresh DA that never saw the design): one row per case, verbatim
+     actuals (values, output, exit codes) as evidence, verdict binary. The runner also flips status: sealed → passed | failed and bumps
      updated: — the only edits a sealed test ever receives. -->
 
 | Case ID | Expected | Actual | PASS/FAIL |
 |---------|----------|--------|-----------|
 | <placeholder: AT-1> | <placeholder> | <placeholder> | <placeholder> |
 
-**Overall verdict:** <placeholder: PASSED | FAILED> — <placeholder: YYYY-MM-DD>, executed by <placeholder: da | data-reviewer>
+**Overall verdict:** <placeholder: PASSED | FAILED> — <placeholder: YYYY-MM-DD>, executed by <placeholder: da-validator | da-runner>
 
 ---
 

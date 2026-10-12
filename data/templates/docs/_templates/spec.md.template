@@ -23,7 +23,7 @@ phase: <placeholder: investigation | mvp | post-mvp>
 <!-- guidance: File goes in docs/claude_tasks/NN_slug.md.
      task_number = integer matching the NN_ prefix of the filename.
      ticket = the tracker ticket id using THIS project's prefix (read it from
-     corpus.config.mjs / .claude/settings.json), or null explicitly.
+     scripts/corpus.config.mjs / .claude/settings.json), or null explicitly.
      authority: secondary = the spec is context, not SSOT — the sealed alpha test
      (docs/claude_tasks/alpha_tests/NN_slug.md) is the SSOT for acceptance at Step 8.
      affects: uses the project frontmatter grammar (see .claude/rules/frontmatter.md).

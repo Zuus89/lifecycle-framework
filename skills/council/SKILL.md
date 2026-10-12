@@ -41,7 +41,7 @@ Formal multi-agent deliberation with adversarial review. Adapts the 7-step proto
 
 **Target** can be:
 - A spec path: `docs/claude_tasks/<NN_slug>.md`
-- A ticket: a tracker key (read the prefix and tracker type from `corpus.config.mjs` / `.claude/settings.json` at runtime — e.g. a Jira key or a Linear identifier)
+- A ticket: a tracker key (read the prefix and tracker type from `scripts/corpus.config.mjs` / `.claude/settings.json` at runtime — e.g. a Jira key or a Linear identifier)
 - An inline question: `"Should component X use approach A or approach B?"`
 
 ---

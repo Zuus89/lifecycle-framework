@@ -89,11 +89,21 @@ discovered post-seal become **tracker sub-issues**, never a retroactive mutation
 
 ### Moment 3 — Step 8: frozen-test execution
 
-**Purpose:** binary, unarguable acceptance. (Collapsed separation of duties: you designed it and you run it. In strict
-mode a separate `data-reviewer` runs it — that mode is OFF by default.)
+**Purpose:** binary, unarguable acceptance. (Collapsed separation of duties, the default: you designed it and you run
+it.)
 
-1. Read the sealed alpha test. **Verify `status: sealed`** — if not, stop and tell the PM; an unsealed test cannot
-   govern Step 8.
+**Strict separation of duties** (`separation_of_duties_mode = strict` in `.claude/settings.json → agents`; OFF by
+default): the PM spawns a **second, fresh `da`** labelled `da-runner` for Step 8 — one that never saw the design.
+If your brief labels you `da-runner`:
+- You did not design the test and never will: no new cases, no adjusted expected values, no "spirit of the test". A
+  case that needs a judgment call to execute is a test defect → report it to the PM.
+- Before the first case, run the freeze-rule integrity check: `git log -p` on the test file shows no content change
+  after `sealed_date` beyond the legitimate post-seal edits. A content edit after sealing → a High finding to the PM;
+  never run a compromised test as if it were clean.
+- Read only the sealed test and the result it judges — never the DE's notes or intent.
+
+1. Read the sealed alpha test. **Verify the seal** — `status: sealed`, a `sealed_date` and `authority: ssot`; if any
+   is missing, stop and tell the PM — an unsealed test cannot govern Step 8.
 2. Execute each case **exactly as written.** No reinterpretation, no "spirit of the test", no adjusting expected
    values to match what the implementation produced.
 3. Record a binary pass/fail per case in the test's **Execution log**, with verbatim evidence (query output, diff,

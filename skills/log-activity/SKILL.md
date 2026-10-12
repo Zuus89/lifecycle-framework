@@ -49,7 +49,7 @@ Field rules:
 - `session` — 8-char id shared by every line of one continuous work session (§C). The fixed token `"backfill"`
   (8 chars) is the one sanctioned exception — it marks historical reconstructions (see §C).
 - `ticket` — the tracker ticket id, e.g. `ABC-912`. The **prefix is project-specific** — read it from
-  `corpus.config.mjs` (`ticketKey`) at runtime; never hardcode it here. Derived from the current git branch by
+  `scripts/corpus.config.mjs` (`ticketKey`) at runtime; never hardcode it here. Derived from the current git branch by
   **substring search** with the case-insensitive regex built from that prefix (`BRANCH_TICKET_REGEX`: for `ABC`,
   `(?i)abc-?(\d+)` matches `feat/abc-912-slug` and `username/abc-912-slug`). If not derivable, prompt once and
   persist in the session file. `null` is valid when the project has no tracker (`tracker = none`).
@@ -58,12 +58,12 @@ Field rules:
 - `step` — integer `1`–`10` (the lifecycle step the event closes), or `null`. Taken from `EVENTS` **at invocation
   time** — never reverse-parsed from a comment. `null` for events with no fixed step.
 - `agent` — the role that authored the step: one of `LOG_AGENTS` (`pm`, `de`, `da`, `code-reviewer`,
-  `devils-advocate`, the optional roles `corpus-steward`, `kb-curator`, `data-reviewer`, `scout`,
-  `dead-code-cleanup`, `linear-steward`, or `human`) — the role-descriptive id, never a display name or a `CC.`
-  tag. (`null` survives only on historical lines.)
+  `devils-advocate`, the optional roles `kb-curator` and `linear-steward`, or `human`) — the role-descriptive id,
+  never a display name or a `CC.` tag. (`null` survives only on historical lines.)
 - `model` — the model id the authoring agent runs on (its frontmatter pin, or the session model for the PM), or
   `null` when unknown.
-- `event` — a tag from the §B vocabulary (`EVENTS`). New tags are added to `corpus.config.mjs` first, then here.
+- `event` — a tag from the §B vocabulary (`EVENTS`). New tags are added to `scripts/corpus.config.mjs` first, then
+  here.
 - `summary` — 1–3 plain sentences. The human record. Written, not boilerplate. In the project's documentation
   language (English by default; see `CLAUDE.md`).
 - `artifacts` — repo-relative paths created or changed in this step. `[]` if none.
@@ -127,7 +127,7 @@ branch regex first**; fall back to the stored value only when the branch yields 
 Execute in order:
 
 0. **Tracker config (only with `--tracker`).** Read `tracker.type` and the connection identity from
-   `.claude/settings.json` / `corpus.config.mjs` (`tracker`). Confirm the comment tool exists: Linear →
+   `.claude/settings.json` / `scripts/corpus.config.mjs` (`tracker`). Confirm the comment tool exists: Linear →
    `mcp__linear__*` (`save_comment`; verbs vary by server version — discover them from the session tool list),
    Jira → `mcp__atlassian__addCommentToJiraIssue` plus a resolved cloud id. Missing tool or unresolved tracker →
    **stop and say so; write nothing**. `tracker = none` → continue without a comment.
