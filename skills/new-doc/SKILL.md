@@ -11,7 +11,7 @@ Scaffold a new governed `.md` document with valid frontmatter from a project tem
 **This table is the single convention for where each document lives.** Agents, skills and templates name these
 paths and no others; the plugin's consistency test fails on any other `docs/claude_tasks/` path.
 
-Every governed doc must start valid: correct frontmatter, correct shape. That is the whole point of scaffolding from a template instead of writing from memory — it keeps the corpus machine-checkable (the index, the validator, the pre-push hook, and CI all depend on it).
+Every governed doc must start valid: correct frontmatter, correct shape. That is the whole point of scaffolding from a template instead of writing from memory — it keeps the corpus machine-checkable (the index, the validator, the pre-commit hook, and CI all depend on it).
 
 > **Template source:** `docs/_templates/` — one template per type (11 templates). A template is the only definition
 > of its document's structure: agents and skills point to it, never restate it.
@@ -70,6 +70,8 @@ The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task n
    - **Delete the template guidance header** — remove the `<!-- DELETE THIS HEADER BEFORE PUBLISHING -->` sentinel block before delivering.
 
    **Type-specific fields:**
+   - `spec` → `tier:` = the tier the human confirmed at Step 1 (`S | M | L`). Tier S keeps only the sections the
+     template's guidance names (Objective, Required outputs, Out of scope, Acceptance criteria) — delete the rest.
    - `alpha_test` → `designed_by: da`, `status: draft`, `sealed_date: null`. The seal (`status: sealed`, `sealed_date:` set) happens **only at lifecycle Step 6**, after spec review resolves — never at scaffold time. (Freeze rule.)
    - `analysis` → `type: report` with `tags: [analysis]`; written at Step 2, BEFORE the spec exists — so no
      `depends_on` to a spec. Ad-hoc DA investigations use it too.

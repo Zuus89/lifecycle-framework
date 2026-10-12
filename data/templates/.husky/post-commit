@@ -1,7 +1,0 @@
-#!/usr/bin/env sh
-# post-commit: append a `committed` line to docs/activity_log.jsonl for the just-made
-# commit (the git-hook half of the "every step leaves a trace" guarantee; the other
-# half is /log-activity). Best-effort: `|| true` ensures a logging failure never
-# leaves the commit in a broken post-commit state.
-# Invoked by repo-relative path (no ${CLAUDE_PLUGIN_ROOT} in git hooks).
-node scripts/log-commit-activity.mjs || true

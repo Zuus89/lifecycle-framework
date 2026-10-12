@@ -268,3 +268,41 @@ test("/log-tracker is gone: no skill directory and no mention left in the shippe
     assert.ok(!/log-tracker/.test(read(file)), `${file} still mentions log-tracker`);
   }
 });
+
+// --- Tiers, one hook, two-read session start (CRI-1157) ------------------------------------------------
+
+test("task tiers: one table in pm.md, mirrored in FRAMEWORK.md, enumerated in corpus.config and the spec template", async () => {
+  const { TIER_ENUM } = await loadConfig();
+  const tierRows = (text) => Object.fromEntries([...text.matchAll(/^\| \*\*([SML])\*\* \| [^|]+ \| ([^|]+) \|\s*$/gm)].map((m) => [m[1], m[2].trim()]));
+  const pm = tierRows(read(join(agentsDir, "pm.md")));
+  assert.deepEqual(Object.keys(pm).sort(), [...TIER_ENUM].sort(), "pm.md's tier table names exactly TIER_ENUM");
+  assert.deepEqual(tierRows(read(join(REPO, "FRAMEWORK.md"))), pm, "FRAMEWORK.md's tier table runs the same steps as pm.md's");
+  const spec = read(join(TEMPLATE_DIR, "spec.md.template")).match(/^tier: <placeholder: ([^—>]+)/m);
+  assert.ok(spec, "the spec template must carry a tier placeholder");
+  sameSet(tokens(spec[1]), TIER_ENUM, "spec template tier placeholder");
+  const claude = read(join(TEMPLATES, ".claude", "CLAUDE.md.template"));
+  assert.match(claude, /\*\*Task tiers:\*\*/);
+  assert.doesNotMatch(claude + read(join(agentsDir, "pm.md")), /\*\*Shortcuts/, "tiers replace the shortcuts the human had to invoke");
+});
+
+test("session start: CLAUDE.md §3 is three steps and two reads; pm.md points to it instead of repeating it", () => {
+  const claude = read(join(TEMPLATES, ".claude", "CLAUDE.md.template"));
+  const s3 = claude.slice(claude.indexOf("## 3. Session Start Protocol"), claude.indexOf("## 4."));
+  assert.deepEqual([...s3.matchAll(/^(\d+)\. /gm)].map((m) => m[1]), ["0", "1", "2"]);
+  assert.match(s3, /^1\. \*\*Read `docs\/context_snapshot\.md`\*\*/m);
+  assert.match(s3, /^2\. \*\*Read the spec in flight\*\*/m);
+  const pm = read(join(agentsDir, "pm.md"));
+  assert.doesNotMatch(pm, /^## Session-Start Checklist/m);
+  assert.match(pm, /^## Session Start\n\nRun the Session Start Protocol in `CLAUDE\.md` §3/m);
+});
+
+test("the retired hooks stay retired: no template, no `committed` event, nothing that relies on them", async () => {
+  const { EVENTS } = await loadConfig();
+  assert.ok(!("committed" in EVENTS), "commits are not logged — git log is their record");
+  for (const f of ["post-commit", "pre-push"]) assert.ok(!existsSync(join(TEMPLATES, ".husky", f)), `.husky/${f} must not be scaffolded`);
+  assert.ok(!existsSync(join(TEMPLATES, "scripts", "log-commit-activity.mjs")));
+  for (const file of shippedText()) {
+    if (file.endsWith(join("lifecycle-init", "SKILL.md"))) continue; // its §7 lists the retired files, to remove them
+    assert.doesNotMatch(read(file), /log-commit-activity|\.husky\/(post-commit|pre-push)/, `${file} still relies on a retired hook`);
+  }
+});

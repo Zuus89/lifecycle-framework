@@ -124,9 +124,13 @@ Issues found during self-review are **fixed before the report**, never reported 
 ## 4. Write the task report
 
 **Output:** `/new-doc report` → `docs/claude_tasks/reports/YYYY-MM-DD_NN_slug_report.md` (template
-`docs/_templates/report.md`). **Always delivered** — complete, partial, or failed. Spec deviations need a substantive
-justification ("seemed better" is not one). Its **Lessons learned** section is where your findings live: schema or
-interface corrections, platform quirks, new patterns, anything future tasks should know — or "No new lessons".
+`docs/_templates/report.md`). On tiers M and L it is **always delivered** — complete, partial, or failed. Spec
+deviations need a substantive justification ("seemed better" is not one). Its **Lessons learned** section is where
+your findings live: schema or interface corrections, platform quirks, new patterns, anything future tasks should
+know — or "No new lessons".
+
+**Tier S has no report:** your summary to the PM carries it — what changed, how you verified it (the self-review
+still applies in full), and any lesson worth keeping.
 
 ## 5. Respond to PM review
 

@@ -1,6 +1,11 @@
 #!/usr/bin/env sh
-# pre-commit: validate governed-doc frontmatter (warn-only, never blocks a commit).
-# Local feedback only — the strict gate runs in CI (lint-frontmatter.yml).
+# pre-commit: validate the frontmatter of the docs THIS commit stages (warn-only, never blocks a commit).
+# Local feedback only — the strict gate runs in CI (lint-frontmatter.yml) on the pull request.
+# There is no post-commit or pre-push hook: git log is the record of commits, and INDEX freshness is
+# checked by CI (and rebuilt by /close-task).
 # Scripts are invoked by repo-relative path: husky git hooks do not resolve
 # ${CLAUDE_PLUGIN_ROOT}, so the corpus engine must live in scripts/ in this repo.
-node scripts/validate-frontmatter.mjs --warn-only docs .claude
+
+# No .md staged (added, copied, modified or renamed) → nothing to check, and no Node start.
+git diff --cached --quiet --diff-filter=ACMR -- '*.md' && exit 0
+node scripts/validate-frontmatter.mjs --warn-only --staged

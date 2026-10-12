@@ -29,7 +29,7 @@ The variant decides which sections run. Choose before touching any file.
 
 | Variant | When | What runs |
 |---|---|---|
-| **Full lifecycle close** | A 10-step task is done — spec + alpha test + report exist, the human validated at Step 9 (or a sanctioned shortcut applies) | §1 (lifecycle read) + §2 + §3 + §4 + §5 |
+| **Full lifecycle close** | A task is done and the human validated it at Step 9 — tier M/L: spec + alpha test + report exist; tier S: the short spec, plus the code-reviewer review when production code changed | §1 (lifecycle read) + §2 + §3 + §4 + §5 |
 | **Research / non-lifecycle close** | Investigation, spike, or governance/docs work — no spec, no alpha test, maybe no ticket | §1 (research read) + §2 + §4 + §5. **SKIP §3** (no spec flip/archive, no alpha test, no forced ticket Done) |
 | **Transitory close** | A multi-session task at a session boundary — it continues next session | ONLY: overwrite `docs/context_snapshot.md` + **KB curation (§2 "Knowledge-base curation")** + INDEX rebuild *if the curator wrote* + `/log-activity paused` + **§5 "Commit (Transitory close)"** (curation bundle, only if the curator wrote) + **§5 Report**. The snapshot IS the persisted memory the next session resumes from; the KB keeps what must outlive the task. **No** chronicle, **no** ticket Done, the spec stays `in_progress` |
 
@@ -44,8 +44,9 @@ git-remote repo).
 
 Read what the session actually produced before writing anything.
 
-- **Full:** the latest report in `docs/claude_tasks/reports/`; the spec (`docs/claude_tasks/<NN_slug>.md`) for its
-  acceptance criteria and its tracker id; the alpha-test result in `docs/claude_tasks/alpha_tests/`;
+- **Full:** the latest report in `docs/claude_tasks/reports/` (tier S: the DE's summary instead); the spec
+  (`docs/claude_tasks/<NN_slug>.md`) for its tier, acceptance criteria and tracker id; the alpha-test result in
+  `docs/claude_tasks/alpha_tests/` (tiers M and L);
   `git diff --stat <default-branch>` (resolve the default branch — do not hardcode `main`); `TODO.md`.
 - **Research:** the artifact(s) the session produced (the `docs/research/` doc, knowledge-base or schema files,
   governance edits); `git diff --stat <default-branch>`; `TODO.md` and the tracking ticket if one exists.
@@ -76,11 +77,15 @@ the chronicle records *why the project changed direction*, not *what was done th
 
 ### context_snapshot.md — OVERWRITE
 Overwrite `docs/context_snapshot.md` (the single where-we-are handoff; usually gitignored). The deliberate overwrite
-keeps it a snapshot, not a log. Current state only, facts only, kept short:
-- What was just completed this session.
-- What is next (mirror the top of `TODO.md`).
-- Blockers / open questions.
-- Current state of any open decisions and the deploy/pipeline status if the stack has one.
+keeps it a snapshot, not a log. It is **the one page the next session reads at start** (with the spec in flight), so
+keep the scaffolded section headings and fill each, facts only, one page:
+- **State in force** — the task in flight, its tier and step reached, the ticket's tracker status, the governing
+  spec and sealed alpha test by path (and the deploy/pipeline status if the stack has one).
+- **Next action** — what the next session does first (mirror the top of `TODO.md` when no task is in flight).
+- **Recent decisions** — the last 3 decisions of record from `docs/project_chronicle.md`, one line each with the date.
+- **Open decisions** — the open decisions in `docs/strategy.md` that constrain the next task.
+- **Dependencies of the task in flight** — `node scripts/affects-lookup.mjs` on the spec's `affects:`, one line each.
+- **Carry-over** — blockers and open questions.
 
 ### Distilled knowledge — folded into the corpus
 There is no separate memory write: **the chronicle + context_snapshot + knowledge base ARE the persisted memory.**
@@ -103,6 +108,9 @@ The activity log is the audit trail; the chronicle + snapshot + report + KB arti
 keep them distinct.
 
 ### Knowledge-base curation — kb-curator (ALL variants, including Transitory)
+
+On a **tier-S** Full close, run it only if the DE's summary reported a lesson — a one-file change rarely produces
+durable knowledge; say "KB curation: skipped (tier S, no lesson)" in the close report otherwise.
 
 Read `agents.kb_curator` from `.claude/settings.json` (absent block/key = **enabled**, the default). If enabled,
 spawn the `kb-curator` teammate with a self-contained brief: the variant, the ticket id, the session id, and the
@@ -148,8 +156,8 @@ the flag is off or the tracker is not Linear, skip this subsection silently.
 If any frontmatter changed this session, rebuild the corpus index by running the project's build-index script
 (its name is in `corpus.config.mjs` — typically `node scripts/build-index.mjs`). If
 `git diff --quiet docs/INDEX.md docs/index.json` reports dirty, stage both and include them in the close commit.
-Make this **unconditional on frontmatter change** — a conditional rebuild leaves an intra-day drift window, and the
-pre-push hook / CI will block the push if the INDEX drifts from source.
+Make this **unconditional on frontmatter change** — a conditional rebuild leaves an intra-day drift window, and CI
+blocks the pull request if the INDEX drifts from source.
 
 ### Activity log
 Write the closing line with the single logger: `/log-activity task-closed: <summary>` on a Full or Research
@@ -258,7 +266,7 @@ for authorization — the PM does not write it unilaterally.
 ### Commit (Full close)
 Stage the index files, the archived/updated spec, any `docs/knowledge_base/` files the kb-curator wrote, and any
 authorized doc edits, then commit on the task branch (`1 ticket = 1 branch = 1 PR`; never force-push; never commit
-to the default branch directly). Let the post-commit hook append the `committed` activity-log line.
+to the default branch directly).
 
 ### Commit (Transitory close)
 If the kb-curator wrote, commit a curation-only bundle on the task branch: `git add` the **explicit paths**

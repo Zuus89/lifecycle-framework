@@ -5,10 +5,13 @@
  * Hard rules (block CI) + soft rules (warnings).
  *
  * Usage:
- *   node scripts/validate-frontmatter.mjs [--warn-only] [--root <dir>] [path...]
+ *   node scripts/validate-frontmatter.mjs [--warn-only] [--staged] [--root <dir>] [path...]
  *
  * Flags:
  *   --warn-only   Print issues but exit 0 (local pre-commit mode)
+ *   --staged      Validate only the .md files staged for the next commit (the
+ *                 pre-commit hook). Reads the working-tree copy of each staged
+ *                 file. Nothing staged → exits 0 at once.
  *   --root <dir>  Override repo root (testing)
  *
  * Exit codes:
@@ -21,6 +24,7 @@
  */
 
 import { readFileSync } from 'fs';
+import { execFileSync } from 'child_process';
 import { join, relative, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { collectMdFiles, parseFrontmatter, hasBOM } from './_corpus-walk.mjs';
@@ -29,6 +33,7 @@ import {
   STATUS_ENUM,
   AUTHORITY_ENUM,
   VERDICT_ENUMS,
+  TIER_ENUM,
   TICKET_REGEX,
   AFFECTS_PREFIXES,
   AFFECTS_PREFIX_RE,
@@ -40,10 +45,27 @@ const __dirname = dirname(__filename);
 
 const args = process.argv.slice(2);
 const WARN_ONLY = args.includes('--warn-only');
+const STAGED = args.includes('--staged');
 const rootIdx = args.indexOf('--root');
 const REPO_ROOT = rootIdx !== -1 ? args[rootIdx + 1] : join(__dirname, '..');
 const paths = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--root');
-const TARGET_DIRS = paths.length > 0 ? paths.map(p => (p.startsWith('/') || /^[A-Za-z]:/.test(p) ? p : join(REPO_ROOT, p))) : [REPO_ROOT];
+
+/** The .md files staged for the next commit (added, copied, modified or renamed — not deleted). */
+function stagedMdFiles() {
+  const out = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR', '-z'], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  });
+  return out.split('\0').filter((p) => p.endsWith('.md')).map((p) => join(REPO_ROOT, p));
+}
+
+const absolute = (p) => (p.startsWith('/') || /^[A-Za-z]:/.test(p) ? p : join(REPO_ROOT, p));
+const TARGET_DIRS = STAGED ? stagedMdFiles() : paths.length > 0 ? paths.map(absolute) : [REPO_ROOT];
+
+if (STAGED && TARGET_DIRS.length === 0) {
+  console.log('No staged .md files — nothing to validate.');
+  process.exit(0);
+}
 
 const DROPPED = new Set(VALIDATOR.DROPPED_RULES || []);
 
@@ -180,7 +202,17 @@ function validateFile(filePath, content) {
     }
   }
 
+  // Rule 13: task tier — a spec's tier, when present, is one of TIER_ENUM.
+  if (fm.type === 'spec' && fm.tier !== undefined && fm.tier !== null && !TIER_ENUM.has(fm.tier)) {
+    hard('R13', `Invalid tier: "${fm.tier}". Must be one of: ${[...TIER_ENUM].join(', ')}`);
+  }
+
   // --- Soft rules ---
+
+  // Soft 2: an active spec without a tier runs as M by default — say so.
+  if (fm.type === 'spec' && (fm.status === 'draft' || fm.status === 'in_progress') && (fm.tier === undefined || fm.tier === null)) {
+    soft('S2', `spec has no tier: — it runs as M; set tier: S | M | L (confirmed by the human at Step 1)`);
+  }
 
   // Soft 1: tags empty on a spec older than 7 days
   if (fm.type === 'spec' && Array.isArray(fm.tags) && fm.tags.length === 0 && fm.created) {

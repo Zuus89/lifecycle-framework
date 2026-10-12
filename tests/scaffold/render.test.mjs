@@ -17,7 +17,8 @@ before(() => {
 });
 
 test("the scaffold has the expected size and no unresolved placeholders", () => {
-  assert.ok(files.length >= 50, `expected ≥ 50 template files, got ${files.length}`);
+  // A floor, not an exact count: it catches a scaffold that lost its files, not one that gained or retired one.
+  assert.ok(files.length >= 45, `expected ≥ 45 template files, got ${files.length}`);
   for (const f of files) {
     const left = [...f.content.matchAll(VAR_RE)].map((m) => m[1]);
     assert.deepEqual(left, [], `${f.src} still carries ${left.join(", ")}`);
@@ -63,16 +64,34 @@ test("the scaffold ships the nine governance rules", () => {
   ]);
 });
 
-test("the GitHub workflow template is valid YAML with the two jobs it documents", () => {
+test("CI is one job, on pull requests only, installing js-yaml alone (the range package.json declares)", () => {
   const wf = yaml.load(files.find((f) => f.out === ".github/workflows/lint-frontmatter.yml").content);
-  assert.deepEqual(Object.keys(wf.jobs).sort(), ["validate", "verify-index"]);
+  assert.deepEqual(Object.keys(wf.on), ["pull_request"], "no push trigger — one run per pull-request update");
+  assert.deepEqual(Object.keys(wf.jobs), ["corpus"]);
+  const runs = wf.jobs.corpus.steps.map((s) => s.run || "").join("\n");
+  assert.doesNotMatch(runs, /npm ci\b/, "never installs the project's dependency tree");
+  const range = JSON.parse(files.find((f) => f.out === "package.json").content).devDependencies["js-yaml"];
+  assert.ok(runs.includes(`npm install --prefix "$RUNNER_TEMP/corpus-engine" --no-save --no-audit --no-fund "js-yaml@${range}"`),
+    "CI installs exactly the js-yaml range the scaffolded package.json declares");
+  assert.match(runs, /validate-frontmatter\.mjs docs \.claude/);
+  assert.match(runs, /build-index\.mjs[\s\S]*git diff --exit-code -- docs\/INDEX\.md docs\/index\.json/);
 });
 
-test("husky hooks are executable shell scripts that call the scaffolded scripts", () => {
+test("one git hook: pre-commit validates only the staged docs, warn-only; the post-commit logger is gone", () => {
   const hooks = files.filter((f) => f.out.startsWith(".husky/"));
-  assert.deepEqual(hooks.map((f) => f.out).sort(), [".husky/post-commit", ".husky/pre-commit", ".husky/pre-push"]);
-  assert.match(hooks.find((f) => f.out === ".husky/pre-commit").content, /validate-frontmatter\.mjs/);
-  assert.match(hooks.find((f) => f.out === ".husky/pre-push").content, /build-index\.mjs/);
+  assert.deepEqual(hooks.map((f) => f.out), [".husky/pre-commit"]);
+  assert.match(hooks[0].content, /^git diff --cached --quiet --diff-filter=ACMR -- '\*\.md' && exit 0$/m, "code-only commits start no Node");
+  assert.match(hooks[0].content, /^node scripts\/validate-frontmatter\.mjs --warn-only --staged$/m);
+  assert.ok(!files.some((f) => f.out === "scripts/log-commit-activity.mjs"));
+});
+
+test("the spec template carries the tier; the snapshot carries what the session start reads", () => {
+  const spec = files.find((f) => f.out === "docs/_templates/spec.md").content;
+  assert.match(spec, /^tier: <placeholder: S \| M \| L/m);
+  const snap = files.find((f) => f.out === "docs/context_snapshot.md").content;
+  for (const h of ["State in force (read first)", "Next action", "Recent decisions (chronicle tail)", "Open decisions", "Dependencies of the task in flight", "Carry-over (still open)"]) {
+    assert.ok(snap.split("\n").includes(`## ${h}`), `the snapshot template lacks "## ${h}"`);
+  }
 });
 
 test("corpus.config.mjs renders into an importable module with the engine's contract", async () => {

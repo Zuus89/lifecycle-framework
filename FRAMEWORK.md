@@ -58,12 +58,12 @@ The project's current state must be reconstructable from a handful of files, so 
   `/handshake` uses on git-remote transport.
 
 ### `docs/activity_log.jsonl` — **APPEND-ONLY**
-- **What:** The machine-readable audit trail. One JSON line per lifecycle step plus one per commit. Fields:
+- **What:** The machine-readable audit trail. One JSON line per lifecycle step (commits live in `git log`). Fields:
   `ts, session, ticket, branch, pr_url, step, event, agent, model, summary, artifacts, tracker_comment_id`.
 - **Why:** The granular, queryable record of *what happened, by whom, when, with which model*. The "every step
   leaves a trace" guarantee. The `tracker_comment_id` cross-references the human-readable tracker comment
   (the other half of the dual-write).
-- **Writes:** `/log-activity` + the post-commit git hook. **When:** after every step / commit. **Protection:** append-only.
+- **Writes:** `/log-activity`, the only writer. **When:** after every step. **Protection:** append-only.
 
 ### `.claude/log_session`
 - **What:** A tiny JSON state file `{ id, branch, issue }` holding the current session id, branch, and active ticket.
@@ -77,9 +77,9 @@ The project's current state must be reconstructable from a handful of files, so 
 - **What:** A generated index of every governed `.md`: its type, status, authority, and relationships
   (`depends_on` / `affects`), built by `build-index.mjs`.
 - **Why:** Turns loose files into a machine-checkable knowledge base. The real value is **seeing relationships** —
-  what depends on what you're about to change — not just finding files. Freshness is gated by the pre-push hook and CI
-  (the push is blocked if the INDEX drifts from source).
-- **Writes:** `build-index.mjs` (never by hand). **When:** pre-push, CI, and `/audit-corpus`.
+  what depends on what you're about to change — not just finding files. Freshness is gated by CI on every pull
+  request (the PR fails if the INDEX drifts from source); `/close-task` rebuilds it whenever frontmatter changed.
+- **Writes:** `build-index.mjs` (never by hand). **When:** `/close-task`, CI, and `/audit-corpus`.
 
 ## D. Lifecycle artifacts (`docs/claude_tasks/` and siblings)
 
@@ -183,19 +183,21 @@ One place per artifact type, so the folder is a corpus, not a pile.
     session start, recording findings in the corpus, the shared hard rules. Agents carry only their role.
   - `testing.md` — test priority order, organization, independence + determinism.
 
-### `.husky/` git hooks (project-local)
-- **What:** `pre-commit` (frontmatter validate `--warn-only`), `post-commit` (auto-append a `committed` JSONL line),
-  `pre-push` (rebuild INDEX, block on drift).
-- **Why:** Enforces traceability + corpus freshness at the git boundary, automatically.
+### `.husky/pre-commit` — the one git hook (project-local)
+- **What:** Validates the frontmatter of the docs the commit stages (`--warn-only --staged`): one Node start per
+  commit, never blocks, leaves the tree clean. There is no post-commit hook (`git log` is the record of commits) and
+  no pre-push hook (INDEX freshness is checked by CI and rebuilt by `/close-task`).
+- **Why:** Early, cheap feedback on the documents actually being committed.
 
 ### `.github/workflows/lint-frontmatter.yml` (+ optional CI by stack)
-- **What:** MANDATORY CI: strict frontmatter validation (no `--warn-only`) + INDEX-freshness verify. Optional add-ons:
+- **What:** MANDATORY CI, one job on every pull request: strict frontmatter validation (no `--warn-only`) +
+  INDEX-freshness verify. It installs only js-yaml, never the project's dependency tree. Optional add-ons:
   `claude-code-review` (always-on bias-free PR-diff review), schema/catalog snapshot, dead-code, lint gates.
 - **Why:** The third, always-on, bias-free review layer (after DE self-review and PM review) on the PR diff.
 
 ### `scripts/*.mjs` + `corpus.config.mjs`
-- **What:** The corpus engine: `validate-frontmatter`, `build-index`, `log-commit-activity`, `affects-lookup`,
-  `_corpus-walk`, plus per-project constants in `corpus.config.mjs`.
+- **What:** The corpus engine: `validate-frontmatter`, `build-index`, `affects-lookup`, `_corpus-walk`, plus
+  per-project constants in `corpus.config.mjs`.
 - **Why:** The tooling the skills, hooks, and CI call. **Scaffolded into the repo** (not plugin-resident) because
   husky/CI invoke them by relative path and `${CLAUDE_PLUGIN_ROOT}` doesn't resolve there.
 
@@ -219,10 +221,23 @@ Numbering is the canonical 1–10 (the deck). `/log-activity` fires after **ever
 | 4 | **Alpha test** | DA | The DA designs the pre-committed **acceptance test against the spec, before any implementation exists**. Test-first. |
 | 5 | **Spec reviewed** | DE + devils-advocate | The DE checks feasibility/correctness with executed read-only probes. **In parallel**, the devils-advocate challenges the spec with ranked, evidence-grounded objections. No spec reaches implementation unchallenged. |
 | 6 | **Resolve** | PM | The PM addresses every objection. If the spec changes, the alpha test is refreshed. The spec is then **FROZEN** — this is the freeze point, before implementation. |
-| 7 | **Implementation** | DE | The DE builds against the frozen spec, runs a self-review checklist (signatures, no hardcoded config, security, error handling, tests pass), writes the task report. **The code-reviewer gate runs here** before any deploy/commit (any CRITICAL → NOT SAFE). |
+| 7 | **Implementation** | DE | The DE builds against the frozen spec, runs a self-review checklist (signatures, no hardcoded config, security, error handling, tests pass), writes the task report (tiers M and L). **The code-reviewer gate runs here** before any deploy/commit (any CRITICAL → NOT SAFE). |
 | 8 | **Review** | PM + DA | The PM checks the report against acceptance criteria. The **DA runs the frozen alpha test** — binary pass/fail (collapsed SoD; in strict mode a separate `data-reviewer` runs it). |
 | 9 | **Validation** | Human | The human does the final acceptance check on the live result, and either accepts it or sends it back. *(The one human gate — see open decision.)* |
 | 10 | **Close** | PM | `/close-task` writes the final log entry, refreshes the snapshot + TODO, appends to the chronicle, runs the kb-curator (session knowledge → `docs/knowledge_base/`), conditionally re-audits architecture, and moves the ticket to Done. The corpus (chronicle + snapshot + KB + INDEX) IS the persisted memory. |
+
+**Task tiers — ceremony proportional to risk.** Every task is S, M or L. The PM proposes the tier at Step 1 and the
+human confirms it with one word; the tier goes in the spec's frontmatter (`tier:`). The PM agent definition holds the
+same table:
+
+| Tier | When | Steps run |
+|---|---|---|
+| **S** | All of: no behavior change, or a change confined to one file; no data, schema or interface touched; no protected file; no new dependency; undone by a single revert. | 1 → 3 (short spec) → 7 (code-reviewer gate if production code changes) → 8 (PM check only) → 9 → 10 |
+| **M** | Everything that is neither S nor L — the default. | 1 → 2 (only if data or a live system is involved) → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 |
+| **L** | Any of: two or more viable designs with no clear winner; a protected file or a decision of record; irreversible or wide blast radius. | As M, with `/council` at Step 5 |
+
+No tier leaves out the spec with acceptance criteria, the code-reviewer gate on production code, Step 9, or
+`/close-task`. `/audit-corpus` flags a tier-S task that touched data or skipped the gate as a High finding.
 
 **Bias control (the spine):** the test is written before the code (Step 4), frozen before implementation (Step 6),
 and run against a result it could not influence (Step 8). **Separation of duties:** DA designs *and* (in collapsed
@@ -233,8 +248,8 @@ code-review (on the PR diff, always-on, bias-free).
 
 **Traceability (dual-write, one logger):** after each step, `/log-activity` appends the JSONL line; at milestones
 the same call with `--tracker` also posts the mirrored tracker comment, cross-referenced by id. The line shape and
-the event vocabulary have one machine copy, `corpus.config.mjs` (`LOG_FIELDS`, `EVENTS`), shared with the
-post-commit hook. The logger never moves a ticket to Done — `/close-task` does, once.
+the event vocabulary have one machine copy, `corpus.config.mjs` (`LOG_FIELDS`, `EVENTS`). Commits are not logged —
+`git log` is their record. The logger never moves a ticket to Done — `/close-task` does, once.
 
 ---
 

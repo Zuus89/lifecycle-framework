@@ -14,26 +14,34 @@ tags: [snapshot]
 
 # Context Snapshot
 
-> **The single "where we are" handoff for the next session.** Current state only — NOT
-> history (that is `project_chronicle.md`). Kept short, facts only. **Overwritten on every
-> close** (`/close-task`, Step 10) — the deliberate overwrite is what keeps it a snapshot, not
-> a log. Usually gitignored; if it syncs by another means (e.g. a synced drive), say so here.
+> **The one page a session reads at start** (with the spec in flight). Current state only — NOT history (that is
+> `project_chronicle.md`). Kept short, facts only. **Overwritten on every close** (`/close-task`) — the deliberate
+> overwrite is what keeps it a snapshot, not a log. Usually gitignored; if it syncs by another means (e.g. a
+> synced drive), say so here. Keep these section headings: the Session Start Protocol relies on them.
 
 ## State in force (read first)
 
-- Project `{{PROJECT_NAME}}` initialized with the Lifecycle Framework on {{TODAY}}.
-- No task is in progress yet. The lifecycle starts at Step 1 (Brief) with the human.
+- **Task in flight:** none yet — project `{{PROJECT_NAME}}` initialized with the Lifecycle Framework on {{TODAY}}.
+- **Ticket state:** <placeholder: the ticket and its tracker status at close, or "none">
+- **Governing documents:** <placeholder: the spec in flight and its sealed alpha test, by path — or "none">
 
-## What the last session did
+## Next action
 
-- `/lifecycle-init` scaffolded the governance corpus (strategy, architecture stub, chronicle,
-  this snapshot, the empty activity log, `_templates/`, `claude_tasks/`, knowledge base).
+1. The human gives the first Brief (Step 1) — a short, intentionally rough ticket: the goal and the motivation.
+   The PM proposes its tier (S | M | L) and the human confirms it with one word.
 
-## OPEN — start here next session
+## Recent decisions (chronicle tail)
 
-1. Human gives the first Brief (Step 1) — a short, intentionally rough ticket: the goal and
-   the motivation.
-2. The PM expands it into a spec (Step 3) after the DA profiles the relevant inputs (Step 2).
+- <placeholder: the last 3 decisions of record — one line each, with the chronicle date — or "none yet">
+
+## Open decisions
+
+- <placeholder: the open decisions in docs/strategy.md that constrain the next task, one line each — or "none">
+
+## Dependencies of the task in flight
+
+- <placeholder: what the spec's affects: touches and who depends on it (node scripts/affects-lookup.mjs), one line
+  each — or "no task in flight">
 
 ## Carry-over (still open)
 
@@ -41,6 +49,5 @@ tags: [snapshot]
 
 ## How to run things (environment notes)
 
-- Operating contract: `CLAUDE.md`. Route: `TODO.md`. Decision history: `docs/project_chronicle.md`.
-- Per-project memory: the corpus itself — `docs/project_chronicle.md` + this snapshot + `docs/knowledge_base/` (topic articles) + `docs/INDEX.md`. Recall = read those; record = write back via `/close-task` (the kb-curator folds durable knowledge into the KB at every close).
+- Operating contract: `.claude/CLAUDE.md`. Route: `TODO.md`. Decision history: `docs/project_chronicle.md`.
 - <placeholder: auth steps / env gotchas the next session needs — never paste secrets>

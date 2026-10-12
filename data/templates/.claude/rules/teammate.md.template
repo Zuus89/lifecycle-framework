@@ -32,13 +32,13 @@ specific to its role; this rule carries the rest, once.
 
 ## 2. Session start
 
-1. `.claude/CLAUDE.md` — governance, hard rules, environment, protected files.
-2. `docs/architecture.md` (once it exists) — the live system.
-3. Corpus context — `docs/project_chronicle.md`, `docs/context_snapshot.md`, `docs/INDEX.md`. For a topic, grep
-   the corpus (`docs/knowledge_base/` included, `aliases:` too) or run `node scripts/affects-lookup.mjs <path>`.
-4. The task spec — with its Revision Log once Step 6 has run — and every reference file it lists. Mandatory.
+1. `.claude/CLAUDE.md` — governance, hard rules, environment, protected files (read it if it is not already in
+   your context).
+2. The task spec — with its Revision Log once Step 6 has run — and every reference file it lists. Mandatory.
+3. The corpus on demand, for what your step touches: grep it (`docs/knowledge_base/` included, `aliases:` too) or
+   run `node scripts/affects-lookup.mjs <path>`; `docs/architecture.md` when your step depends on the live system.
 
-Then the reads your role adds; your agent definition lists them.
+Then the reads your role adds; your agent definition lists them. Nothing else by reflex.
 
 ## 3. Recording findings
 
