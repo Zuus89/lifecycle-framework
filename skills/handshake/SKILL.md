@@ -236,7 +236,7 @@ absent → detect: repo path contains `OneDrive`, `Dropbox`, or `Google Drive` (
 | Handoff doc missing / Branch mismatch (git-remote in) | Degraded resume: reconstruct from the last commits' diff, `docs/activity_log.jsonl` tail, and `TODO.md`; say loudly the snapshot could not be regenerated from a handoff; recommend `/handshake out` next boundary |
 | No active task (research session) | Marker/handoff with `ticket: null`, `task_number: 0`, slug from the branch |
 | `tracker = none` | Skip tracker-key and tracker-MCP checks; handoff header Tracker = "local TODO.md only" |
-| Secrets missing on the arriving machine | Names-only report + which capabilities are down until the keys exist (script/REST consumers only — the tracker MCP and `/log-tracker` depend on `/mcp` OAuth at the recorded scope, not on secrets.env) |
+| Secrets missing on the arriving machine | Names-only report + which capabilities are down until the keys exist (script/REST consumers only — the tracker MCP and `/log-activity --tracker` depend on `/mcp` OAuth at the recorded scope, not on secrets.env) |
 | Branch protection blocks pushing the task branch (git-remote) | Report the server's exact rejection; options: adjust protection for the task-branch namespace, or accept transfer only at PR boundaries. Never bypass |
 | Pre-push INDEX drift at push time | Run `npm run build:index`, commit the INDEX pair as a NEW commit (never `--amend`), push again. Never `--no-verify` |
 

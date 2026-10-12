@@ -1,42 +1,41 @@
 ---
 name: log-activity
-description: Use this skill after every lifecycle step to append one machine-readable record to docs/activity_log.jsonl. Tracker-agnostic and append-only — it is the cheap, local half of the dual-write (use /log-tracker when the step also warrants a tracker comment). Also invoked automatically by the .husky/post-commit hook for commits. This SKILL.md is the canonical definition of the JSONL activity-log contract.
-allowed-tools: Bash, Read, Write
+description: "The lifecycle's single logger. After every lifecycle step, append one machine-readable record to docs/activity_log.jsonl. At milestones add --tracker: the same call also posts the mirrored comment on the active tracker issue (Linear or Jira), writes the SAME line cross-referenced by the comment id, and applies the step's state markers (blocker, type:*). Append-only; never moves a ticket to Done (/close-task owns that). The machine copy of the contract — LOG_FIELDS, EVENTS, LOG_AGENTS — lives in scripts/corpus.config.mjs; this file documents it. committed lines are written by the .husky/post-commit hook."
+allowed-tools: Bash, Read, Write, mcp__linear, mcp__atlassian
 ---
 
-# Log Activity
+# Log Activity — the single logger
 
-Append one JSON Lines record to `docs/activity_log.jsonl`. This file is the **canonical definition** of the JSONL activity-log contract: schema, vocabulary, session id, append procedure, failure semantics, and validation. When in doubt about the JSONL shape, this file is authoritative.
+Append one JSON Lines record to `docs/activity_log.jsonl`. Two modes, one line shape:
 
-This skill is **tracker-agnostic** — it never touches Jira or Linear. It is the cheap, local, spam-free half of the dual-write. Its counterpart, `/log-tracker`, performs the same append **plus** posts a mirrored tracker comment (cross-referenced by id) — but only at milestones, to avoid spamming the tracker with routine steps. Call `/log-activity` freely after every step; reach for `/log-tracker` only when the step is also worth a tracker comment (Step 1 start, blockers, decisions of record, Step 10 close).
+| Mode | When | Writes |
+|---|---|---|
+| `/log-activity <event>: <summary>` | after **every** semantic step | the JSONL line (`tracker_comment_id: null`) |
+| `/log-activity <event>: <summary> --tracker` | at **milestones** worth surfacing on the ticket: Step 1 start, a blocker and its resolution, a decision of record, the Step-10 Full close (optionally the Step-8 pass/fail) | the tracker comment **first**, then the **same** JSONL line carrying the comment id, plus the step's state markers (§E) |
 
-The two halves are joined by `tracker_comment_id`: `/log-activity` always writes `null`; only `/log-tracker` writes a real id.
+The contract has one machine copy, `scripts/corpus.config.mjs`: `LOG_FIELDS` (the line shape), `EVENTS` (the
+vocabulary, each event with its step), `LOG_AGENTS` (who may author a line). This file documents that copy and
+the plugin's consistency test keeps the two equal. The `.husky/post-commit` hook writes `committed` lines from
+the same `LOG_FIELDS` — never hand-log routine commits. There is no other writer.
 
-## When to Use
+**What this logger never does:** move a ticket to Done. `/close-task` owns that transition and performs it
+exactly once. `--tracker` posts comments and state markers only. Reserve `--tracker` for milestones so the
+tracker stays signal, not spam; `tracker = none` makes `--tracker` a no-op (the line is still written).
 
-After every significant step — especially the **semantic** events a git hook cannot author (it has no idea which lifecycle step just completed). Mapped to the 10-step lifecycle:
+## §A — JSONL line schema
 
-- `brief-received` (Step 1) · `data-analysis-complete` (Step 2) · `spec-written` (Step 3)
-- `alpha-test-designed` (Step 4) · `spec-review-complete` / `devils-advocate-attack-complete` (Step 5)
-- `spec-revised` / `alpha-test-sealed` (Step 6) · `implementation-started` / `implementation-complete` / `code-review-complete` (Step 7)
-- `alpha-test-executed` / `tests-passed` / `tests-failed` (Step 8) · `validation-complete` (Step 9) · `task-closed` (Step 10)
-- `blocker-hit` / `blocker-resolved` · `decision` · `paused` · `handshake-out` / `handshake-in` (no fixed step)
-
-`committed` lines are written **automatically** by the `.husky/post-commit` hook (`scripts/log-commit-activity.mjs`) — do **not** hand-log routine commits. Use `/log-tracker` (not this skill) when the step is also worth a tracker comment.
-
-## §A — JSONL Line Schema
-
-One JSON object per line. **All fields always present** — use `null`, never omit a key:
+One JSON object per line. **All twelve fields always present** — use `null`, never omit a key:
 
 ```json
 {
   "ts": "2026-06-29T14:32:00Z",
   "session": "a1b2c3d4",
-  "issue": "ABC-912",
+  "ticket": "ABC-912",
   "branch": "feat/abc-912-slug",
   "pr_url": null,
   "step": 7,
   "agent": "de",
+  "model": "claude-opus-4-8",
   "event": "implementation-started",
   "summary": "Started implementation against the frozen spec; scaffolding committed.",
   "artifacts": ["docs/claude_tasks/03_example_spec.md"],
@@ -47,20 +46,33 @@ One JSON object per line. **All fields always present** — use `null`, never om
 Field rules:
 
 - `ts` — ISO-8601, UTC, second precision (e.g. `2026-06-29T14:32:00Z`).
-- `session` — 8-char id shared by every line of one continuous work session (§C). The fixed token `"backfill"` (8 chars) is the one sanctioned exception — it marks historical reconstructions (see §C).
-- `issue` — the tracker ticket key, e.g. `ABC-912`. The **ticket prefix is project-specific** — read it from `corpus.config.mjs` (the `tracker_key` / project prefix constant) or `CLAUDE.md` at runtime; never hardcode it in this skill. Derived from the current git branch via **substring search** with a case-insensitive regex built from that prefix — e.g. for prefix `ABC`, the regex `(?i)abc-?(\d+)` matches both `feat/abc-912-slug` and `username/abc-912-slug`. If not derivable, prompt once and persist in the session file. `null` is valid when the project has no tracker (`tracker = none`, local `TODO.md` only).
+- `session` — 8-char id shared by every line of one continuous work session (§C). The fixed token `"backfill"`
+  (8 chars) is the one sanctioned exception — it marks historical reconstructions (see §C).
+- `ticket` — the tracker ticket id, e.g. `ABC-912`. The **prefix is project-specific** — read it from
+  `corpus.config.mjs` (`ticketKey`) at runtime; never hardcode it here. Derived from the current git branch by
+  **substring search** with the case-insensitive regex built from that prefix (`BRANCH_TICKET_REGEX`: for `ABC`,
+  `(?i)abc-?(\d+)` matches `feat/abc-912-slug` and `username/abc-912-slug`). If not derivable, prompt once and
+  persist in the session file. `null` is valid when the project has no tracker (`tracker = none`).
 - `branch` — current git branch verbatim (`git branch --show-current`).
 - `pr_url` — string, or `null` if no PR. Resolve via `gh pr view --json url -q .url`; trap a non-zero exit → `null`.
-- `step` — integer `1`–`10` (lifecycle step), or `null`. Determined **at invocation time** from the event being logged — NOT reverse-parsed from any comment. `null` is valid for events with no fixed step (`blocker-hit`, `decision`, `paused`, …) and for machine-originated (hook) lines.
-- `agent` — the role that authored the step. One of the role-descriptive ids `pm`, `de`, `da`, `code-reviewer`, `devils-advocate` (plus optional roles if enabled: `corpus-steward`, `kb-curator`, `data-reviewer`, `scout`, `dead-code-cleanup`), the human actor (`human`), or **`null`** for machine-originated (hook) lines. Set at invocation time from the logging context.
-- `event` — a lowercase-hyphenated tag from the §B vocabulary. New tags require an addition to that table.
-- `summary` — 1–3 plain sentences. The human record. Written, not boilerplate. Use the project's documentation language (English by default; see `CLAUDE.md`).
+- `step` — integer `1`–`10` (the lifecycle step the event closes), or `null`. Taken from `EVENTS` **at invocation
+  time** — never reverse-parsed from a comment. `null` for events with no fixed step and for hook lines.
+- `agent` — the role that authored the step: one of `LOG_AGENTS` (`pm`, `de`, `da`, `code-reviewer`,
+  `devils-advocate`, the optional roles `corpus-steward`, `kb-curator`, `data-reviewer`, `scout`,
+  `dead-code-cleanup`, `linear-steward`, or `human`), or `null` for machine-originated (hook) lines. The
+  role-descriptive id, never a display name or a `CC.` tag.
+- `model` — the model id the authoring agent runs on (its frontmatter pin, or the session model for the PM), or
+  `null` when unknown or machine-originated.
+- `event` — a tag from the §B vocabulary (`EVENTS`). New tags are added to `corpus.config.mjs` first, then here.
+- `summary` — 1–3 plain sentences. The human record. Written, not boilerplate. In the project's documentation
+  language (English by default; see `CLAUDE.md`).
 - `artifacts` — repo-relative paths created or changed in this step. `[]` if none.
-- `tracker_comment_id` — `null` for `/log-activity` lines (no tracker comment). Only `/log-tracker` sets a real id (the cross-reference to the human-readable tracker comment — the other half of the dual-write).
+- `tracker_comment_id` — the id of the tracker comment posted by this same invocation (`--tracker`), else `null`.
+  The cross-reference between the machine record and the human-readable one.
 
-## §B — Event Vocabulary
+## §B — Event vocabulary
 
-Canonical, **closed list** mapped to the 10-step lifecycle. New tags require a line added here.
+Canonical, **closed list** mapped to the 10-step lifecycle (the machine copy is `EVENTS`):
 
 | `event` | Description | `step` |
 |---|---|---|
@@ -80,68 +92,121 @@ Canonical, **closed list** mapped to the 10-step lifecycle. New tags require a l
 | `tests-passed` | Step 8 — alpha test / validations passed (binary) | 8 |
 | `tests-failed` | Step 8 — alpha test / validations failed (binary) | 8 |
 | `validation-complete` | Step 9 — human accepted (or sent back — say which in `summary`) | 9 |
-| `task-closed` | Step 10 — `/close-task` | 10 |
-| `kb-curated` | Knowledge folded into `docs/knowledge_base/` by the kb-curator at close (summary carries created/updated/skipped counts) | 10 (full/research close) / **`null` (transitory)** |
+| `task-closed` | Step 10 — `/close-task`, Full or Research variant (the `summary` names the variant) | 10 |
+| `kb-curated` | Knowledge folded into `docs/knowledge_base/` by the kb-curator at close (summary carries created/updated/skipped counts) | 10 (Full/Research close) / **`null` (Transitory)** |
 | `blocker-hit` | Work blocked — needs unblock | `null` |
 | `blocker-resolved` | Blocker cleared — work resumed | `null` |
 | `decision` | A decision of record or a deviation from plan | `null` |
-| `paused` | Work paused (end of day / transitory close) | `null` |
+| `paused` | Work paused (end of day / Transitory close — a session boundary completes no step) | `null` |
 | `handshake-out` | Machine transfer packed by `/handshake out` (summary carries the machine hint and, on git-remote transport, the wip-commit hash + handoff doc path) | `null` |
 | `handshake-in` | Machine transfer unpacked by `/handshake in` (summary carries the source machine, snapshot regenerated yes/no, and the environment-verification result) | `null` |
 | `council-convened` | A `/council` deliberation was convened | `null` |
 
-`committed` is `step: 7` for **manual** invocation; the `post-commit` hook writes `step: null` because a commit's lifecycle step is not determinable in-hook (a commit can happen at Step 7 implementation or Step 10 close).
+`committed` is `step: 7` for a **manual** invocation; the post-commit hook writes `step: null` because a commit's
+lifecycle step is not determinable in-hook.
 
-`kb-curated` is `step: 10` when part of a Full or Research close and `step: null` at a transitory boundary (same rationale as `paused` — no lifecycle step completed). The **PM invokes** the log write — the activity log is outside the kb-curator's write allow-list — but the line carries `agent: "kb-curator"` (authored-by semantics). Log it only **after** every FAILED entry in the curator's filing plan is resolved (fixed or `git restore`d), and only when ≥1 KB file survived that resolution; a zero-write (or fully-restored) curation is recorded in the close report, not the log. `artifacts` = only the surviving KB files that ride the close commit.
+`kb-curated` is `step: 10` in a Full or Research close and `null` at a Transitory boundary. The **PM invokes** the
+write (the log is outside the kb-curator's allow-list) but the line carries `agent: "kb-curator"`. Log it only
+after every FAILED entry in the curator's filing plan is resolved, and only when ≥ 1 KB file survived; `artifacts`
+= the surviving KB files that ride the close commit.
 
-`handshake-out` / `handshake-in` are `step: null` (same rationale as `paused` — a machine boundary completes no lifecycle step), `agent: "pm"`. On git-remote transport, `handshake-out` is appended **before** the final handshake commit so the line rides the push; `handshake-in` is appended on the arriving machine. One known residue: the final handshake commit's own post-commit `committed` hook line never rides any push — `/handshake in` restores it on arrival (`git restore docs/activity_log.jsonl`; the line is reproducible from `git log`, no audit loss). The arriving machine's `.claude/log_session` may be absent or stale — §C self-heals with a fresh 8-char id, which is correct: a new machine is a new session (`/handshake in` regenerates the file deliberately).
+`handshake-out` / `handshake-in` are `step: null`, `agent: "pm"`. On git-remote transport `handshake-out` is
+appended **before** the final handshake commit so the line rides the push; `handshake-in` on the arriving machine.
+Known residue: the final handshake commit's own `committed` hook line never rides a push — `/handshake in` restores
+it (`git restore docs/activity_log.jsonl`; the line is reproducible from `git log`).
 
-> Norse-alias cross-reference (legacy instances): `code-review-complete` was `heimdall-review-complete`; `devils-advocate-attack-complete` was `loki-attack-complete`. Use the role-descriptive tags above going forward.
+## §C — Session id
 
-## §C — Session Id
+State file `.claude/log_session`, JSON: `{ "id": "<8-char>", "branch": "<branch>", "issue": "<TICKET or null>" }`.
+Gitignored — local, per-machine state. **Never commit it.**
 
-State file `.claude/log_session`, JSON: `{ "id": "<8-char>", "branch": "<branch>", "issue": "<TICKET-KEY or null>" }`. Gitignored — local, per-machine state. **Never commit it.**
+On each invocation: read it; if it is missing, **or** its `branch` differs from the current branch, **or** the
+user said a new session began → generate a fresh 8-char hex id (`openssl rand -hex 4` or equivalent) and write
+the file with the current branch + ticket. Otherwise reuse the stored `id`. For the ticket, **always try the
+branch regex first**; fall back to the stored value only when the branch yields no match.
 
-On each invocation:
+**Backfill exception:** lines reconstructing past lifecycles use `session: "backfill"`. They are historical and
+**not authoritative for recency** — recency consumers (audits, staleness checks) MUST ignore them.
 
-1. Read `.claude/log_session`.
-2. If it is missing, **or** its `branch` differs from the current branch, **or** the user said a new session began → generate a fresh 8-char hex id (`openssl rand -hex 4` or equivalent), and write the file with the current branch + issue.
-3. Otherwise reuse the stored `id`. For `issue`, **always attempt the branch regex first** (the case-insensitive prefix regex from §A); fall back to the stored `issue` only when the branch yields no match.
-
-**Backfill exception:** lines reconstructing past lifecycles use the fixed `session: "backfill"` token. These are historical and **not authoritative for recency** — any recency consumer (the corpus-steward, audits, staleness checks) MUST ignore `session="backfill"` lines when computing "last meaningful touch".
-
-## §D — Append Procedure
+## §D — Procedure
 
 Execute in order:
 
-1. **Gather context.**
-   - `branch` ← `git branch --show-current`
-   - `issue` ← substring-search the project's ticket-prefix regex (read the prefix from `corpus.config.mjs` / `CLAUDE.md`) on `branch`; if no match, read from `.claude/log_session`; if still unknown and the project has a tracker, prompt once and persist; if the project has no tracker, use `null`.
-   - `pr_url` ← `gh pr view --json url -q .url`; trap non-zero exit → `null`
-   - `session` ← read or generate per §C
-   - `ts` ← current time, ISO-8601 UTC, second precision
-2. **Resolve the entry.** `event` + `step` + `agent` + `summary` + `artifacts` come from the invocation (`/log-activity <event>: <summary>`). If invoked with no args, infer all from recent work and **show them to the user for confirmation before writing**.
-3. **Append the JSONL line** to `docs/activity_log.jsonl`:
-   - Construct the complete JSON object with **every** field present (`tracker_comment_id: null`).
-   - Append it as a single line followed by a newline.
-   - Create the file if it does not exist.
-   - **Never edit or overwrite any existing line.** This file is append-only.
+0. **Tracker config (only with `--tracker`).** Read `tracker.type` and the connection identity from
+   `.claude/settings.json` / `corpus.config.mjs` (`tracker`). Confirm the comment tool exists: Linear →
+   `mcp__linear__*` (`save_comment`; verbs vary by server version — discover them from the session tool list),
+   Jira → `mcp__atlassian__addCommentToJiraIssue` plus a resolved cloud id. Missing tool or unresolved tracker →
+   **stop and say so; write nothing**. `tracker = none` → continue without a comment.
+1. **Gather context.** `branch`, `ticket` (§A), `pr_url`, `session` (§C), `ts`.
+2. **Resolve the entry.** `event` + `summary` + `artifacts` come from the invocation; `step` from `EVENTS`;
+   `agent` and `model` from the logging context. Invoked with no args → infer from recent work and **show the
+   entry for confirmation before writing**.
+3. **With `--tracker`: post the comment first** (§E), capture its id (`response.id` for Linear; the created
+   comment's `id` for Jira — no fallback lookup), then apply the state markers the event requires (§E).
+4. **Append the line** to `docs/activity_log.jsonl`: the complete object with every `LOG_FIELDS` key (in that
+   order), one line, trailing newline; create the file if absent; **never edit or overwrite an existing line**.
+5. **Validate** (§G).
 
-## §E — Failure Semantics
+## §E — Tracker comment and state markers (`--tracker`)
 
-- **JSONL append fails** (file lock, disk error, permission) → report the failure **loudly** with the complete JSON line, verbatim, so it can be appended manually. **Never fail silently** — a missing audit line is worse than a noisy error.
+Every comment starts with a role tag (the `agent` id, prefixed `CC.` and upper-cased for the three two-letter
+roles — `CC.PM`, `CC.DE`, `CC.DA`, `CC.code-reviewer`, `CC.devils-advocate`; the human's display name for
+`human`), then a step or non-step tag, the timestamp, then the summary. Identical markdown on both trackers
+(Jira renders it with `contentFormat: "markdown"`). Comments are append-only — never edit or delete a prior one.
 
-## §F — Validation
+```markdown
+**CC.DE** · **[Step 5 — Spec review complete]** 2026-04-08 14:30
+
+Review written to `docs/claude_tasks/reviews/2026-04-08_35_de_review.md`.
+3 findings: missing edge case for NULLs, wrong partition key, unclear acceptance criterion #5.
+```
+
+Non-step tags: `blocker-hit` → `[Blocker]`, `blocker-resolved` → `[Blocker resolved]`, `decision` → `[Decision]`,
+`paused` → `[Paused]`, `council-convened` → `[Council]`. `task-closed` → `[Step 10 — Task closed]`.
+
+State markers are side-effects of specific events — applying them is not optional when `--tracker` is used:
+
+| Event | State action | How |
+|---|---|---|
+| `blocker-hit` | add the `blocker` label | read-compute-write (below) |
+| `blocker-resolved` | remove the `blocker` label | read-compute-write |
+| `spec-written` | apply exactly ONE work-type label: `type:feature` · `type:bug` · `type:refactor` · `type:data-audit` · `type:doc` — set once, never changed later | read-compute-write |
+| `tests-passed` / `tests-failed` | optional: move to "In Review" **if the project's workflow has that state** | Linear `save_issue state`; Jira `transitionJiraIssue` by name |
+| `task-closed` | **nothing** — the Done transition belongs to `/close-task` | — |
+
+**Read-compute-write (both trackers):** label writes replace the full set. Read the current labels
+(Linear `get_issue` → `labels`; Jira `getJiraIssue` fields `["labels"]`), compute current + added (or − removed),
+write the full set (Linear `save_issue labels`; Jira `editJiraIssue fields.labels` — no spaces in Jira labels,
+use the hyphenated form). Never drop a project-specific label. Jira status is a workflow transition, resolved by
+name at runtime with `getTransitionsForJiraIssue` — never a hardcoded id; a missing optional transition is noted
+in the comment and skipped.
+
+## §F — Failure semantics
+
+- **Comment fails** (`--tracker`) → write nothing; report clearly. The two records stay consistent.
+- **Comment succeeds, a state marker fails** → the comment and the line still stand; report the marker that did
+  not apply so it can be set by hand. Never delete the comment.
+- **Comment succeeds, the JSONL append fails** (lock, disk, permission) → do **not** retry the comment; report
+  **loudly** with the captured `tracker_comment_id` and the complete JSON line verbatim, so it can be appended by
+  hand. This is the one tolerable drift — it must be visible, never silent.
+- **Plain mode, append fails** → report loudly with the complete line verbatim. A missing audit line is worse
+  than a noisy error.
+
+## §G — Validation
 
 After every invocation, confirm:
 
-- Exactly one new line was appended to `docs/activity_log.jsonl`.
-- Every line still parses:
-  `node -e "require('fs').readFileSync('docs/activity_log.jsonl','utf8').trim().split('\n').forEach(l=>JSON.parse(l))"` — parses without error.
+- Exactly one new line was appended to `docs/activity_log.jsonl`, and every line still parses:
+  `node -e "require('fs').readFileSync('docs/activity_log.jsonl','utf8').trim().split('\n').forEach(l=>JSON.parse(l))"`
+- The new line has exactly the `LOG_FIELDS` keys, `event` ∈ `EVENTS`, `agent` ∈ `LOG_AGENTS` or `null`.
+- With `--tracker`: `tracker_comment_id` equals the id the comment call returned (or `null` for `none`).
 - A second invocation only appends; it never rewrites or deletes a prior line.
 
-## Persist Reusable Knowledge (distinct from this log)
+## Persist reusable knowledge (distinct from this log)
 
-Distinct from this log. After a step that revealed something a future session needs (a schema surprise, a platform gotcha, a decision that changes future work) → record it in the corpus: the task report (`docs/claude_tasks/reports/`) at the time, and the project chronicle (`docs/project_chronicle.md`, via `/close-task`) at close — the corpus is the memory. Do **not** persist routine progress — that is exactly what this log is for. (If the project enabled basic-memory, you may also use its write_note/search_notes/build_context tools — but the corpus remains the default source of truth.)
+After a step that revealed something a future session needs (a schema surprise, a platform gotcha, a decision
+that changes future work) → record it in the corpus: the task report at the time, the chronicle via
+`/close-task` at close — the corpus is the memory. Routine progress stays here, in the log, and nowhere else.
 
-> Activity log = the audit trail (what happened, by whom, when, with which step). The corpus (chronicle + reports) = distilled, reusable knowledge. Keep them separate.
+> Activity log = the audit trail (what happened, by whom, when, with which step). The corpus (chronicle +
+> reports + KB) = distilled, reusable knowledge. Keep them separate.

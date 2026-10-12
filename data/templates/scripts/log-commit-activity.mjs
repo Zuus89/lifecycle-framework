@@ -6,7 +6,8 @@
  * activity log that manual /log-activity calls tend to forget.
  *
  * BEST-EFFORT: always exits 0. Any error → write nothing, never disrupt the commit.
- * The JSONL contract is canonical in the /log-activity skill (plugin-resident).
+ * The line shape is LOG_FIELDS from corpus.config.mjs (the machine copy of
+ * the contract the /log-activity skill documents) — same writer, same shape.
  *
  * Machine-originated line: agent=null, model=null, step=null, pr_url=null,
  * tracker_comment_id=null.
@@ -16,7 +17,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
-import { OUTPUT, BRANCH_TICKET_REGEX, TICKET_KEY } from './corpus.config.mjs';
+import { OUTPUT, BRANCH_TICKET_REGEX, TICKET_KEY, LOG_FIELDS } from './corpus.config.mjs';
 
 const LOG_PATH = OUTPUT.ACTIVITY_LOG;
 const SESSION_PATH = OUTPUT.SESSION_FILE;
@@ -42,7 +43,8 @@ try {
   // ── Gather commit context ──────────────────────────────────────────────────
   const branch = git('branch --show-current');
   const subject = git('log -1 --format=%s');
-  const files = git('diff-tree --no-commit-id --name-only -r HEAD')
+  // --root: a repo's first commit (the scaffold commit) has no parent and would otherwise list nothing.
+  const files = git('diff-tree --root --no-commit-id --name-only -r HEAD')
     .split('\n')
     .map((f) => f.trim())
     .filter(Boolean);
@@ -71,7 +73,7 @@ try {
   }
 
   // ── Build the line (machine-originated → nulls for human/agent fields) ──────
-  const line = {
+  const values = {
     ts: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
     session,
     ticket,
@@ -85,6 +87,8 @@ try {
     artifacts: files,
     tracker_comment_id: null,
   };
+  // LOG_FIELDS fixes the shape and the order; anything this hook cannot know is null.
+  const line = Object.fromEntries(LOG_FIELDS.map((f) => [f, values[f] ?? null]));
 
   appendFileSync(LOG_PATH, JSON.stringify(line) + '\n', 'utf8');
 } catch {

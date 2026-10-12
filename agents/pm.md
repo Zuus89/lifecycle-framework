@@ -111,16 +111,18 @@ a separate `data-reviewer` runs the frozen test while the DA only designs it —
   append to `docs/activity_log.jsonl`. **A step is not "done" until its `/log-activity` line is written.**
 - `committed` lines are written **automatically** by the `.husky/post-commit` hook — do not hand-log
   routine commits. Hand-log `committed` only when the hook is unavailable.
-- Use `/log-tracker` (= `/log-activity` + a tracker comment, cross-referenced by id) **only at milestones
-  worth surfacing to the tracker**: Step 1 start, blockers, decisions of record, Step 10 close. Reserve it
-  so the tracker stays signal, not spam. `/log-tracker` branches on the tracker chosen at init (Jira via
-  the Atlassian MCP, or Linear); when `tracker = none` it degrades to `/log-activity` only.
+- Add `--tracker` to the same call **only at milestones worth surfacing to the tracker**: Step 1 start,
+  blockers and their resolution, decisions of record, the Step-10 Full close. The one logger then posts the
+  mirrored comment on the ticket and writes the same line cross-referenced by the comment id, applying the
+  event's state markers (`blocker`, `type:*`). Reserve it so the tracker stays signal, not spam. It branches
+  on the tracker chosen at init (Jira via the Atlassian MCP, or Linear); `tracker = none` makes it a no-op.
+  The logger never moves a ticket to Done — `/close-task` does that, once.
 
 **Event-to-step map (the closer event for each step):**
 
 | Step | Closer event(s) | Logged by |
 |------|----------------|-----------|
-| 1 | `brief-received` | PM (via `/log-tracker` — milestone) |
+| 1 | `brief-received` | PM (`/log-activity brief-received --tracker` — milestone) |
 | 2 | `data-analysis-complete` | PM, after DA report lands |
 | 3 | `spec-written` | PM |
 | 4 | `alpha-test-designed` | PM, after DA delivers the alpha test |
@@ -152,7 +154,8 @@ team's job, not the brief's. Before any work begins:
    - **none** → mark the matching `TODO.md` line as in-progress.
 2. Create the spec file `docs/claude_tasks/NN_slug.md` with the brief preserved under `## Brief`
    (use `/new-doc spec` so it starts with valid frontmatter).
-3. `/log-tracker brief-received` with the spec path you will expand.
+3. `/log-activity brief-received: <summary> --tracker` with the spec path you will expand — the milestone
+   comment on the ticket.
 
 ### Step 2 — Spawn DA for Data Analysis
 

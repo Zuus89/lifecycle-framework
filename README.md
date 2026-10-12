@@ -51,7 +51,7 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
   `/close-task`), `data-reviewer` / `scout` / `dead-code-cleanup` / `linear-steward` (optional — the steward keeps
   the ticket's Linear project to the Initiative → Project → Issue taxonomy: structural fields only, proposals for
   the rest, a whole-workspace sweep only on request).
-- **Skills** — `/lifecycle-init`, `/close-task`, `/log-activity`, `/log-tracker`, `/council`, `/new-doc`,
+- **Skills** — `/lifecycle-init`, `/close-task`, `/log-activity` (one logger; `--tracker` at milestones), `/council`, `/new-doc`,
   `/audit-corpus`, `/handshake` (two-machine work transfer — synced-folder or git-remote transport).
 - **Hooks** — a destructive-command guard and a Linear filing guard (both always on: no issue without a project, no
   project outside exactly one initiative), plus an opt-in Linear hygiene detector at session start

@@ -15,9 +15,9 @@ npm test           # node --test "tests/**/*.test.mjs"  — target: < 10 s
 | `hooks/filing-guard.test.mjs` | `check_linear_filing.py`: the 15 stdin cases (deny / allow + warning / pass) |
 | `hooks/destructive.test.mjs` | `check_destructive.py`: generic core, stack patterns gated by env var or `settings.json` |
 | `hooks/detector.test.mjs` | `linear_hygiene.mjs` against a local fake GraphQL server: flag off, no key, auth error, complexity error, project / cached / `--project` / `--scope workspace`, not found |
-| `corpus/engine.test.mjs` | `validate-frontmatter.mjs` and `build-index.mjs` over a rendered fixture project |
+| `corpus/engine.test.mjs` | `validate-frontmatter.mjs` and `build-index.mjs` over a rendered fixture project; `log-commit-activity.mjs` in a throwaway git repo writes exactly `LOG_FIELDS` |
 | `scaffold/render.test.mjs` | every file under `data/templates/` renders with dummy vars: valid JSON/YAML, importable `corpus.config.mjs`, zero unresolved `{{VAR}}` |
-| `consistency/vocab.test.mjs` | one verdict vocabulary across config, rules, templates, skills and agents; every agent `pm.md` names exists; agent/skill frontmatter; `hooks.json` scripts and matchers; plugin/marketplace versions |
+| `consistency/vocab.test.mjs` | one verdict vocabulary across config, rules, templates, skills and agents; the activity-log contract (`/log-activity` table ≡ `EVENTS`, example line ≡ `LOG_FIELDS`, `pm.md` events ⊆ `EVENTS`); `/log-tracker` retired for good; every agent `pm.md` names exists; agent/skill frontmatter; `hooks.json` scripts and matchers; plugin/marketplace versions |
 
 Fixtures are rendered into `tests/.tmp/` (gitignored) on every run. Subprocesses get a scrubbed environment
 (`LINEAR_*`, `CLAUDE_*`, `DESTRUCTIVE_GUARD_*` removed) so a developer's own keys never leak into a test.

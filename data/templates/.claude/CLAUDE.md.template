@@ -71,7 +71,7 @@ with **read-only advisory/cleanup roles on a cheaper model**. Cost follows criti
   verdicts write directly to the KB without a proposal gate — the only human check is the close-commit diff.
 - **Version-pinned intentionally** where the frontmatter names a specific Opus build: re-evaluate the pin on
   the next Opus release rather than letting an alias auto-upgrade.
-- **Skills** (`/close-task`, `/log-activity`, `/log-tracker`, `/council`, `/new-doc`, `/audit-corpus`) inherit
+- **Skills** (`/close-task`, `/log-activity`, `/council`, `/new-doc`, `/audit-corpus`) inherit
   the invoking agent's model — they are markdown injection, not subagent spawns. No skill-level model config.
 
 ---
@@ -159,8 +159,8 @@ Three phases: **Frame (1–4) · Challenge then build (5–7) · Verify and clos
 - A step is not done until its `/log-activity` line is written.
 - **Shortcuts** (the human decides): trivial fix `1 → 7 → 9`; ad-hoc analysis `1 → 7 → 9`; hotfix = DE
   implements, PM reviews post-facto.
-- **Traceability (dual-write):** after each step, `/log-activity` appends the JSONL line; at milestones,
-  `/log-tracker` posts the mirrored tracker comment, cross-referenced by id.
+- **Traceability (dual-write, one logger):** after each step, `/log-activity` appends the JSONL line; at
+  milestones the same call with `--tracker` also posts the mirrored tracker comment, cross-referenced by id.
 - `/council` may be convened at **any** point for a contested, architectural, or irreversible decision.
 
 ---
@@ -208,8 +208,7 @@ Plugin-resident skills (installed once; triggered by slash command or the `Skill
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
 | Close Task | `/close-task` | Step-10 closer: append chronicle, overwrite context_snapshot, status-sync `TODO.md`, conditional `architecture.md` re-audit, rebuild INDEX, move the ticket to Done + Completion Notes. **Every variant runs the kb-curator (if enabled) to fold session knowledge into `docs/knowledge_base/`.** The chronicle + snapshot + KB + INDEX *are* the persisted memory. Variants: full / research / transitory multi-session. With `agents.linear_steward` on (Linear tracker), the linear-steward tidies the closing ticket's project after the kb-curator. |
-| Log Activity | `/log-activity` | Append-only JSONL writer: one record per lifecycle step → `docs/activity_log.jsonl`. The cheap, tracker-free half of the dual-write. `committed` lines are written automatically by the `.husky/post-commit` hook. |
-| Log to Tracker | `/log-tracker` | Dual-write milestone logger: a `/log-activity` append + a mirrored {{TRACKER}} comment, cross-referenced by id. Reserve for milestones worth surfacing (Step 1 start, blockers, decisions, Step 10 close). |
+| Log Activity | `/log-activity` | The single logger. Append-only JSONL writer: one record per lifecycle step → `docs/activity_log.jsonl` (contract: `LOG_FIELDS` / `EVENTS` in `corpus.config.mjs`). With `--tracker`, the same call also posts the mirrored {{TRACKER}} comment cross-referenced by id and applies state markers — reserve it for milestones (Step 1 start, blockers, decisions, Step 10 close). Never moves a ticket to Done. `committed` lines are written automatically by the `.husky/post-commit` hook. |
 | Council | `/council` | 7-step multi-agent deliberation for contested / architectural / irreversible decisions. The devils-advocate is a mandatory participant. Writes a council doc with explicit reopen criteria. |
 | New Doc | `/new-doc` | Scaffolds a governed `.md` (spec, alpha_test, report, review_*, council, handoff) with valid frontmatter from `docs/_templates/`, then validates. |
 | Audit Corpus | `/audit-corpus` | Frontmatter validation across all governed `.md` + rebuild `INDEX.md`/`index.json` + a tiered (High/Medium/Low) health report to `docs/audits/`. High findings include sealed alpha tests modified after sealing. |
@@ -236,9 +235,10 @@ Plugin-resident skills (installed once; triggered by slash command or the `Skill
 - The connection identity lives here, in §12.2, and in `corpus.config.mjs`. The tracker MCP needs **no token**
   (OAuth via `/mcp`, per machine — §12.4); a REST API token exists only if a script needs the API directly, and
   then only in the gitignored `.claude/.local/secrets.env` — never committed, never hardcoded.
-- `/log-tracker` branches on this setting (Jira via the Atlassian MCP, or Linear via the Linear MCP).
-- If `{{TRACKER}}` is `none`, there is no remote tracker: `TODO.md` is the sole task route and `/log-tracker`
-  is a no-op (use `/log-activity` only).
+- `/log-activity --tracker` and `/close-task` branch on this setting (Jira via the Atlassian MCP, or Linear via
+  the Linear MCP).
+- If `{{TRACKER}}` is `none`, there is no remote tracker: `TODO.md` is the sole task route and `--tracker` is a
+  no-op (the JSONL line is still written).
 
 ---
 
@@ -320,7 +320,7 @@ Changes to these require explicit human approval (the PM proposes; the human aut
 1. **No sycophancy — push back with evidence.** Every agent is a domain expert; excellence over agreement.
 2. **One session, one task** — never a whole ticket.
 3. **Every step leaves a trace** — `/log-activity` after every semantic step (`committed` lines auto via the
-   post-commit hook); `/log-tracker` at milestones. A step without its log line is not done.
+   post-commit hook); `--tracker` on the same call at milestones. A step without its log line is not done.
 4. **Alpha test frozen before implementation** — sealed at Step 6; the DE never touches it; no retroactive
    mutation (post-seal edge cases become new tracker sub-issues).
 5. **Code-reviewer gate mandatory before deploy** — 0 CRITICAL findings required; any CRITICAL = NOT SAFE.
@@ -381,11 +381,11 @@ secret-free, into `.claude/settings.json` and `corpus.config.mjs`.
 - This repo's work connects to the tracker at **{{TRACKER_PROJECT}}** under the **{{TRACKER_KEY}}** key — that
   is the scope a branch + PR map back to (1 ticket = 1 branch = 1 PR, §12.1).
 - **{{TRACKER}}** is the identity: Linear (workspace + team + project/initiative) or Jira (site/cloud id +
-  project key, optionally under an epic). `/log-tracker` and `/close-task` post against it via its MCP.
+  project key, optionally under an epic). `/log-activity --tracker` and `/close-task` post against it via its MCP.
 - The tracker MCP authenticates via OAuth (`/mcp`, per machine — §12.4): **no token needed**. A REST token
   (`LINEAR_API_KEY`, or `JIRA_API_TOKEN` + `JIRA_EMAIL`) exists only if a script calls the API directly, and
   then only in the gitignored `.claude/.local/secrets.env`. If **{{TRACKER}}** is `none`, every field above is
-  empty: `TODO.md` is the sole task route and `/log-tracker` is a no-op.
+  empty: `TODO.md` is the sole task route and `--tracker` is a no-op.
 
 ### 12.3 Databricks
 

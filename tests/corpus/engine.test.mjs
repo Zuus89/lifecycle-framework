@@ -2,9 +2,11 @@
 // fixture project: validate-frontmatter.mjs and build-index.mjs.
 import { before, test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TEMPLATES, read, render, runNode, tmpDir, writeFile } from "../_helpers.mjs";
+import { pathToFileURL } from "node:url";
+import { TEMPLATES, baseEnv, read, render, runNode, tmpDir, writeFile } from "../_helpers.mjs";
 
 let fx;
 const script = (name) => join(fx, "scripts", name);
@@ -134,4 +136,29 @@ test("build-index: INDEX.md + index.json from the fixture, byte-stable across ru
   assert.equal(second.status, 0);
   assert.equal(readFileSync(join(fx, "docs", "INDEX.md"), "utf8"), indexMd, "same source → same bytes");
   assert.ok(existsSync(join(fx, "docs", "index.json")));
+});
+
+test("log-commit-activity: the post-commit line is exactly LOG_FIELDS, with the ticket derived from the branch", async () => {
+  // A real (nested, throwaway) git repo: the hook reads HEAD and the branch.
+  const git = (...args) => spawnSync("git", ["-c", "user.name=fixture", "-c", "user.email=fixture@example.com", ...args], { cwd: fx, encoding: "utf8", env: baseEnv() });
+  assert.equal(git("init", "-q", "-b", "feat/ABC-7-fixture").status, 0);
+  assert.equal(git("add", "-A").status, 0);
+  assert.equal(git("commit", "-q", "-m", "feat: fixture commit").status, 0);
+  mkdirSync(join(fx, ".claude"), { recursive: true });
+
+  const r = runNode(script("log-commit-activity.mjs"), [], { cwd: fx });
+  assert.equal(r.status, 0, r.stderr);
+  const lines = readFileSync(join(fx, "docs", "activity_log.jsonl"), "utf8").trim().split("\n");
+  assert.equal(lines.length, 1);
+  const line = JSON.parse(lines[0]);
+  const { LOG_FIELDS } = await import(pathToFileURL(script("corpus.config.mjs")).href);
+  assert.deepEqual(Object.keys(line), LOG_FIELDS, "the hook writes the contract's fields, in order");
+  assert.equal(line.event, "committed");
+  assert.equal(line.ticket, "ABC-7");
+  assert.equal(line.branch, "feat/ABC-7-fixture");
+  assert.equal(line.summary, "feat: fixture commit");
+  assert.ok(line.artifacts.includes("docs/claude_tasks/01_fixture.md"));
+  for (const f of ["pr_url", "step", "agent", "model", "tracker_comment_id"]) assert.equal(line[f], null, `${f} is null on a hook line`);
+  assert.match(line.session, /^[0-9a-f]{8}$/);
+  assert.deepEqual(JSON.parse(readFileSync(join(fx, ".claude", "log_session"), "utf8")), { id: line.session, branch: line.branch, issue: "ABC-7" });
 });
