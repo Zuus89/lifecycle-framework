@@ -105,8 +105,10 @@ One place per artifact type, so the folder is a corpus, not a pile.
 - **Writes:** the reviewing role. **When:** Steps 5 and 8.
 
 ### `docs/claude_tasks/reports/` — task reports
-- **What:** The DE's implementation report: what was built, decisions, deviations, self-review checklist results.
-- **Why:** The record the PM reviews against acceptance criteria at Step 8. **Writes:** DE (Step 7).
+- **What:** The DE's implementation report (what was built, decisions, deviations, self-review checklist results) and
+  the DA's Step-2 analysis report (the real data, profiled before the spec exists).
+- **Why:** The record the PM reviews against acceptance criteria at Step 8, and the ground truth the spec is written
+  against. **Writes:** DE (Step 7), DA (Step 2).
 
 ### `docs/claude_tasks/council/` — council decision docs
 - **What:** One document per convened Council: the question, the positions, the devils-advocate attack, the decision,
@@ -137,10 +139,12 @@ One place per artifact type, so the folder is a corpus, not a pile.
   `## Sources`); seeded at init from user-provided docs; manual human edits are the human-directed exception.
 
 ### `docs/_templates/`
-- **What:** The frontmatter-valid templates `/new-doc` scaffolds from: `spec, alpha_test, report, review_de,
-  review_da, review_code-reviewer, review_devils-advocate, council, handoff, kb_article`.
+- **What:** The frontmatter-valid templates `/new-doc` scaffolds from: `spec, alpha_test, analysis, report,
+  review_de, review_da, review_code-reviewer, review_devils-advocate, council, handoff, kb_article`.
 - **Why:** Every governed doc starts valid (correct frontmatter, correct shape) → the corpus stays machine-checkable.
-  Scaffolded per-project so projects can extend them.
+  A template is the **only** definition of its document's structure; agents and skills point to it, never restate
+  it, and `/new-doc`'s table is the one convention for where each document lives. Scaffolded per-project so
+  projects can extend them.
 
 ## E. Configuration & operational files
 
@@ -175,6 +179,8 @@ One place per artifact type, so the folder is a corpus, not a pile.
   - `mcp-usage.md` — when/how to use each MCP server; Memory protocol at session start + after every task.
   - `search-first.md` — read a file and its importers/dependents/tests **before** editing it.
   - `security.md` — no hardcoded secrets, parameterized queries, input validation, no leaked internal errors.
+  - `teammate.md` — what every spawned teammate shares: working from the spawn prompt, reporting back to the PM,
+    session start, recording findings in the corpus, the shared hard rules. Agents carry only their role.
   - `testing.md` — test priority order, organization, independence + determinism.
 
 ### `.husky/` git hooks (project-local)

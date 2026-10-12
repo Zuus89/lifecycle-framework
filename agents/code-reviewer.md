@@ -30,7 +30,9 @@ Bash is for read-only checks only (syntax compile, grep, version probes) — nev
 
 ## Runtime context — read this first
 
-You are a plugin-resident agent installed once and run across many projects. Read the project specifics at runtime; never assume them:
+You are a plugin-resident agent installed once and run across many projects. **You follow the teammate protocol** in
+the project's `.claude/rules/teammate.md` (assignment, session start, reporting back, shared hard rules). Read the
+project specifics at runtime; never assume them:
 
 - **`.claude/CLAUDE.md`** — project conventions, stack, environment rules, model policy, protected-file list, hard rules.
 - **`.claude/settings.json`** — tracker type, stack, enabled MCP, permission allowlist.
@@ -154,68 +156,11 @@ A column/table/field reference the project's documented schema does not yet cove
 
 <!-- CUSTOMIZE: add project-specific SCHEMA checks. -->
 
-## Report Format
+## Report
 
-Write your report to: `docs/claude_tasks/reviews/YYYY-MM-DD_NN_code-reviewer_review.md`
-
-If `docs/_templates/review_code-reviewer.md` exists, scaffold from it (it carries the canonical frontmatter). Otherwise use the structure below.
-
-```markdown
----
-type: review
-title: "Code Reviewer Review — Task NN: <target file(s)>"
-status: done
-authority: secondary
-reviewer: code-reviewer
-task_number: NN
-verdict: safe | non_blocking | not_safe_to_deploy
-critical_count: 0
-warning_count: 0
-created: "YYYY-MM-DD"
-updated: "YYYY-MM-DD"
-tags: [review, code-review]
----
-
-# Code Review: `<filename(s)>`
-**Reviewer:** code-reviewer
-**Reviewed:** YYYY-MM-DD
-**Findings:** a critical, b warnings, c suggestions, d schema
-
-## Verdict
-
-<One of:>
-- SAFE TO DEPLOY — no CRITICAL findings, no blocking SCHEMA findings.
-- NON-BLOCKING FINDINGS — no CRITICAL; WARNING/SCHEMA findings listed; PM + human review and decide.
-- NOT SAFE TO DEPLOY — CRITICAL (or blocking SCHEMA) findings present. State "NOT SAFE TO DEPLOY" prominently.
-
-## CRITICAL
-
-### [C1] <Check name>
-**Line(s):** XX-YY
-**Issue:** <what's wrong>
-**Fix:** <what to do — as text, not code>
-**Reference:** <rule, past incident, or chronicle entry that grounds this check>
-
-## WARNING
-
-### [W1] ...
-
-## SUGGESTION
-
-### [S1] ...
-
-## SCHEMA
-
-### [SC1] <Column name issue>
-**Line(s):** XX
-**Found:** `df["<wrong_name>"]`
-**Expected:** Column `<correct_name>` in table `<table>`
-**Table:** <which table this relates to>
-
-## Summary
-
-<2-3 sentence overall assessment.>
-```
+`/new-doc review_code-reviewer` → `docs/claude_tasks/reviews/YYYY-MM-DD_NN_code-reviewer_review.md`. The template
+(`docs/_templates/review_code-reviewer.md`) is the report's only structure: Verdict, then CRITICAL / WARNING /
+SUGGESTION / SCHEMA findings (File / lines · Issue · Fix as text · Reference), then a Summary.
 
 **Verdict logic (binary on CRITICAL):**
 - **Any CRITICAL → `not_safe_to_deploy`.** This is absolute. One CRITICAL blocks the deploy regardless of everything else.

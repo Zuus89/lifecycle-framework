@@ -1,0 +1,59 @@
+---
+type: report
+title: "Task <placeholder: NN>: <placeholder: title> — Data Analysis"
+ticket: <placeholder: ticket id, or null>
+status: done
+authority: secondary
+protection: normal
+affects: []
+depends_on: []
+created: <placeholder: YYYY-MM-DD>
+updated: <placeholder: YYYY-MM-DD>
+tags: [analysis]
+task_number: <placeholder: integer>
+---
+
+<!-- DELETE THIS HEADER BEFORE PUBLISHING -->
+
+# Data Analysis — Task <placeholder: NN>: <placeholder: title>
+
+<!-- guidance: File goes in docs/claude_tasks/reports/YYYY-MM-DD_NN_slug_analysis.md.
+     The DA's Step 2 deliverable, written BEFORE the spec exists, so the spec describes the data — or, on a
+     non-data stack, the system — as it IS. Also the shape of ad-hoc DA investigations.
+     Read-only: SELECT only, no mutations. Reproducibility is non-negotiable: every number traces to a query or
+     command on a named source at a stated time. Exact numbers, never approximations. -->
+
+---
+
+## Summary
+
+<!-- guidance: What was analyzed and the key findings, in 2-3 sentences. -->
+
+---
+
+## Methodology
+
+<!-- guidance: Every finding must be re-runnable by a future session. -->
+
+- **Sources:** <placeholder: tables / measures / endpoints, fully qualified as documented for this stack>
+- **Access path:** <placeholder: connection method + config reference — never the literal credential>
+- **Snapshot taken:** <placeholder: YYYY-MM-DD HH:MM and timezone>
+- **Queries / commands:** <placeholder: full text inline, or the script under scripts/ that runs them>
+
+---
+
+## Findings
+
+<!-- guidance: Exact values — row counts, cardinality, NULL rates, distributions, the real grain (what one row
+     represents), freshness and gaps, cross-source reconciliation, duplicates and orphans, drift against
+     docs/schema/. Lead with whatever would surprise the spec writer. -->
+
+- <placeholder>
+
+---
+
+## Recommendations
+
+<!-- guidance: What the spec must account for, and what to escalate to the PM. -->
+
+- <placeholder>

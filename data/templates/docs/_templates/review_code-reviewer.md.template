@@ -36,48 +36,53 @@ warning_count: 0
 
 ---
 
-## Verdict summary
+## Verdict
 
-<!-- guidance: State the verdict at the top. If NOT SAFE, list every CRITICAL finding here
-     first. Any single CRITICAL forces NOT SAFE — there is no override at this gate. -->
+<!-- guidance: One of — SAFE TO DEPLOY (no CRITICAL, no blocking SCHEMA) · NON-BLOCKING FINDINGS (no CRITICAL;
+     WARNING/SCHEMA findings listed, each with a named follow-up; the PM and the human decide) · NOT SAFE TO DEPLOY
+     (any CRITICAL or blocking SCHEMA — state it prominently and list every CRITICAL first). There is no override
+     at this gate. Zero findings: "No issues found. Safe to deploy." -->
+
+**Findings:** <placeholder: a critical, b warnings, c suggestions, d schema>
 
 ---
 
-## Findings
+## CRITICAL
 
-### CRITICAL (C#) — Block deploy until resolved
-
-<!-- guidance: Security vulnerabilities, auth bypasses, injection, data-loss risks,
-     correctness bugs that corrupt state or return wrong results.
-     Format: **CX — Short title** / File: path:line / Finding: description / Fix: required action.
+<!-- guidance: Report findings only — a passing check is not mentioned. One block per finding:
+     ### C1 — <check name>
+     **File / lines:** path:XX-YY
+     **Issue:** what is wrong
+     **Fix:** what to do, as text — never code
+     **Reference:** the rule, chronicle entry or incident that grounds the check
      If none: "No CRITICAL findings." -->
 
-### WARNING (W#) — Must fix in current PR
+---
 
-<!-- guidance: Functional bugs, missing error handling, broken calls, contract gaps that
-     do not corrupt state but will misbehave. If none: "No WARNING findings." -->
+## WARNING
 
-### SUGGESTION (S#) — Address in follow-up
-
-<!-- guidance: Maintainability, readability, non-blocking improvements. -->
-
-### SCHEMA (SC#) — Data / interface-contract observations
-
-<!-- guidance: Schema drift, type mismatches, migration-ordering risks, contract changes
-     that affect downstream consumers. n/a if the change touches no schema/interface. -->
+<!-- guidance: Same block shape (W1, W2 …). Non-blocking: each WARNING gets a named follow-up. -->
 
 ---
 
-## Checklist
+## SUGGESTION
 
-| Check | Status | Notes |
-|-------|--------|-------|
-| No hardcoded secrets or tokens | pass \| fail | |
-| Config read from settings/env, not literals | pass \| fail | |
-| Error handling on all external calls | pass \| fail | |
-| Input validation / parameterized queries (no injection) | pass \| fail | n/a if no external input |
-| No untyped escape hatches where the project requires types | pass \| fail | n/a if untyped stack |
-| Authorization / access checks correct | pass \| fail | n/a if no auth surface |
-| No destructive operations without an approval path | pass \| fail | |
-| Tests cover the changed behavior | pass \| fail | |
-| Matches the frozen spec (no silent scope change) | pass \| fail | |
+<!-- guidance: Same block shape (S1, S2 …). Maintainability and readability. -->
+
+---
+
+## SCHEMA
+
+<!-- guidance: One block per finding:
+     ### SC1 — <name issue>
+     **File / lines:** path:XX
+     **Found:** the name as used
+     **Expected:** the documented name, and where it is documented (spec schema reference, docs/schema/, KB)
+     SC-W = a reference no documented schema covers yet — named, never guessed, never CRITICAL.
+     n/a if the change touches no schema or interface. -->
+
+---
+
+## Summary
+
+<!-- guidance: 2-3 sentences: the overall assessment. -->

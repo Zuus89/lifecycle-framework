@@ -53,7 +53,7 @@ Formal multi-agent deliberation with adversarial review. Adapts the 7-step proto
 The PM writes the framing **before any member is spawned**:
 - **The question** — one sentence, answerable
 - **Options on the table** — each stated neutrally (no pre-loaded winner)
-- **Evidence available** — file paths, data profiles, prior decisions from `docs/project_chronicle.md` and `docs/strategy.md` (the Decisions section), relevant incidents from the corpus (grep `docs/project_chronicle.md` for the topic; the chronicle is the memory). (If the project enabled basic-memory, you may also use its write_note/search_notes/build_context tools — but the corpus remains the default source of truth.)
+- **Evidence available** — file paths, data profiles, prior decisions from `docs/project_chronicle.md` and `docs/strategy.md` (the Decisions section), relevant incidents from the corpus (grep `docs/project_chronicle.md` for the topic; the chronicle is the memory).
 - **What a decision must satisfy** — the constraints (cost, governance, data freshness, distribution, deadlines, etc.)
 
 **Abort gate:** if the framing makes the answer obvious, stop — council is overkill. Decide it and log a `decision` event via `/log-activity` instead.
@@ -118,7 +118,7 @@ Health checks during synthesis:
 The PM writes the verdict document (scaffold it with `/new-doc council`, template `docs/_templates/council.md`) to:
 
 ```
-docs/claude_tasks/council/YYYY-MM-DD_<target-slug>_council.md
+docs/claude_tasks/council/YYYY-MM-DD_slug_council.md
 ```
 
 with `status: pending` — the recommendation is not a decision yet.
@@ -135,78 +135,13 @@ If the human's verdict leaves blocking unresolved questions, they become tracker
 
 ---
 
-## Required sections of the verdict document
+## The verdict document
 
-1. **Decision** — one-sentence answer to the original question (the recommendation until Step 7; the verdict after)
-2. **Reasoning** — 3–5 bullets, each with an evidence citation
-3. **Unresolved Questions** — what the council could NOT answer with current info (required, never silently empty — if none, state "high confidence on all dimensions" explicitly)
-4. **Accepted Risks** — `devils-advocate` attacks acknowledged but not mitigated, with justification and a revisit trigger
-5. **Reopen Criteria** — the explicit conditions under which this decision may be reopened (new data, a failed assumption, a cost threshold crossed, a dependency change). Required: a decision with no reopen criteria is a decision that can never be revisited cleanly.
-6. **Recommended Next Steps** — concrete actions, each owned by a named agent or the human
-7. **Council Meta** — members invoked, rounds run, dissent level, `devils-advocate` attack count (grounded / discarded), and whether the council changed the outcome versus what the PM would have decided alone
-
-The verdict **leads with "Unresolved Questions"** before "Decision" if any unresolved item is blocking — this forces the reader to engage with the unknowns instead of skimming to the recommendation.
-
----
-
-## Output template
-
-```markdown
-# Council Verdict: <target title>
-**Date:** YYYY-MM-DD
-**Target:** <spec path / ticket / question>
-**Members:** de, da, code-reviewer, devils-advocate
-**Rounds:** 3 [or 2 if --quick]
-**Status:** pending → decided
-**Dissent level:** <low / medium / high — was there real disagreement?>
-
-## Decision
-
-<One sentence. The answer.>
-
-## Reasoning
-
-- <Bullet with evidence citation>
-- <Bullet with evidence citation>
-- ...
-
-## Unresolved Questions
-
-- <Question the council could not resolve + why + what would resolve it>
-- ...
-
-> If none, state explicitly: "Council reached high confidence on all dimensions — no unresolved items."
-
-## Accepted Risks
-
-| Risk (from devils-advocate) | Why accepted | Trigger to revisit |
-|-----------------------------|--------------|--------------------|
-| <attack #1> | <cost/benefit reasoning> | <event that would force reconsideration> |
-
-## Reopen Criteria
-
-- <Condition under which this decision is reopened — e.g. "new profiling shows >5% of rows violate the assumed constraint">
-- ...
-
-## Recommended Next Steps
-
-1. [OWNER] <action>
-2. [OWNER] <action>
-3. ...
-
-## Council Meta
-
-- **Members invoked:** <list>
-- **Rounds run:** <N>
-- **Estimated cost:** ~<X>× single-agent spec expansion
-- **Dissent observed:** <summary — where did members disagree and how was it resolved>
-- **devils-advocate attack count:** <N grounded / M discarded>
-- **Changed the outcome?** <yes/no — vs what the PM would have decided alone>
-
-## Appendix — Member Responses
-
-<Collapsed sections with each member's Step 2 + Step 3 outputs, for the audit trail.>
-```
+Scaffold it with `/new-doc council`: the template (`docs/_templates/council.md`) is the only definition of its
+sections — Question, Decision, Reasoning, Unresolved questions, Accepted risks, Reopen criteria, Recommended next
+steps, Human verdict, Council meta, and the member positions as an appendix. Two are never empty: **Unresolved
+questions** (if none, say so explicitly) and **Reopen criteria** (a decision without them can never be revisited
+cleanly). If an unresolved question is blocking, it leads the document, above the Decision.
 
 ---
 

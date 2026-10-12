@@ -12,7 +12,7 @@ updated: <placeholder: YYYY-MM-DD>
 tags: []
 reviewer: de
 task_number: <placeholder: integer>
-verdict: approve_with_fixes
+verdict: <placeholder: approve | approve_with_fixes | reject_needs_rework>
 critical_count: 0
 high_count: 0
 ---
@@ -30,7 +30,7 @@ high_count: 0
 > Reviewer: de
 > Date: <placeholder: YYYY-MM-DD>
 > Spec audited: `docs/claude_tasks/<NN>_<slug>.md`
-> Verdict: <placeholder: APPROVE | APPROVE_WITH_FIXES | REJECT_NEEDS_REWORK>
+> Verdict: <placeholder: approve | approve_with_fixes | reject_needs_rework>
 
 ---
 

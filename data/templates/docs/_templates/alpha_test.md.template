@@ -80,14 +80,16 @@ Cases in this test derive ONLY from the spec — the DA must not read any implem
 
 ## Execution log (Step 8)
 
-<!-- guidance: Executed by the DA at Step 8 — one row per case, verdict binary.
-     Record actuals verbatim (values, output), not summaries. -->
+<!-- guidance: THE Step 8 record — there is no separate validation report. Executed by the DA (or by the
+     data-reviewer in strict separation-of-duties mode): one row per case, verbatim actuals (values, output,
+     exit codes) as evidence, verdict binary. The runner also flips status: sealed → passed | failed and bumps
+     updated: — the only edits a sealed test ever receives. -->
 
 | Case ID | Expected | Actual | PASS/FAIL |
 |---------|----------|--------|-----------|
 | <placeholder: AT-1> | <placeholder> | <placeholder> | <placeholder> |
 
-**Overall verdict:** <placeholder: PASSED | FAILED> — <placeholder: YYYY-MM-DD>, executed by da
+**Overall verdict:** <placeholder: PASSED | FAILED> — <placeholder: YYYY-MM-DD>, executed by <placeholder: da | data-reviewer>
 
 ---
 

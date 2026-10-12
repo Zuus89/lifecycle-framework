@@ -24,7 +24,7 @@ hardcode. The runtime sources of truth are:
   permission allowlist, hook wiring.
 - `corpus.config.mjs` — per-project constants (paths, tracker key/prefix, project slug).
 - `.claude/rules/*.md` — governance rules (code-style, dependency-governance, frontmatter, git-workflow,
-  mcp-usage, search-first, security, testing).
+  mcp-usage, search-first, security, teammate, testing). `teammate.md` is what every teammate you spawn shares.
 
 If any of these is missing, the project has not been scaffolded — run `/lifecycle-init` first.
 
@@ -162,7 +162,7 @@ team's job, not the brief's. Before any work begins:
 **The spec is written AFTER the data/system is profiled, never before.** Spawn `da` with the brief's
 scope: which tables, datasets, endpoints, or modules does this task touch? The DA profiles the real
 state (counts, grains, NULL rates, freshness, surprises; for non-data stacks, the real code/system
-behavior) and writes `docs/claude_tasks/reports/YYYY-MM-DD_NN_slug_analysis.md`.
+behavior) and writes `docs/claude_tasks/reports/YYYY-MM-DD_NN_slug_analysis.md` (`/new-doc analysis`).
 
 Skip only when the task touches no data/system at all (pure docs/governance) — note the skip in the spec.
 
@@ -238,7 +238,7 @@ Spawn **both, in parallel, on every spec** — no spec reaches implementation un
   `docs/claude_tasks/reviews/YYYY-MM-DD_NN_de_review.md`, verdict
   `approve | approve_with_fixes | reject_needs_rework`.
 - `devils-advocate` — adversarial attack on the **reasoning** (grounded-dissent) →
-  `docs/claude_tasks/reviews/YYYY-MM-DD_NN_slug_devils-advocate.md`, verdict
+  `docs/claude_tasks/reviews/YYYY-MM-DD_NN_devils-advocate_review.md`, verdict
   `attack | mostly_grounded_dissent | mostly_speculative`.
 
 **Escalation to `/council`:** if the spec has ≥2 viable designs and no clear winner, OR touches protected
@@ -289,8 +289,6 @@ All patterns:
   the DE **never opens** `docs/claude_tasks/alpha_tests/`.
 - The DE writes its report to `docs/claude_tasks/reports/YYYY-MM-DD_NN_slug_report.md` — that report (and the
   chronicle via `/close-task`) is where key findings are recorded; the corpus is the memory.
-  (If the project enabled basic-memory, you may also use its write_note/search_notes/build_context tools — but
-  the corpus remains the default source of truth.)
 - Log `/log-activity implementation-complete` when the report lands.
 
 **Code-review gate (mandatory, inside Step 7):** before any deploy, or any commit of production code
@@ -328,8 +326,6 @@ Invoke `/close-task` — it refreshes `docs/context_snapshot.md` + `TODO.md`, ap
 `docs/project_chronicle.md` (the corpus is the memory — findings are recorded here, not in any memory server),
 conditionally re-audits `docs/architecture.md` from live sources, rebuilds the INDEX, and moves the ticket to
 Done with Completion Notes. The skill logs `task-closed`.
-(If the project enabled basic-memory, you may also use its write_note/search_notes/build_context tools — but
-the corpus remains the default source of truth.)
 
 ---
 
@@ -384,7 +380,9 @@ Each teammate starts with **zero** context. Your prompt MUST include:
    protocol, injected from its plugin agent definition via `subagent_type`. NEVER instruct it to read
    `.claude/agents/*.md` — that path is not in the project (agents are plugin-resident) and the read would fail.
    A one-line role reminder ("You are the DE for this project") is fine; the protocol itself is already loaded.
-2. **Governance reference:** "Read `CLAUDE.md` (governance, hard rules, protected files, stack standards)."
+2. **Governance reference:** "Read `CLAUDE.md` (governance, hard rules, protected files, stack standards)." The
+   shared teammate behavior — reporting back, session start, recording findings, shared hard rules — is
+   `.claude/rules/teammate.md`; the teammate follows it without being told, so do not restate it in the prompt.
 3. **Task spec path:** "Read the spec at `docs/claude_tasks/NN_slug.md`."
 4. **Specific assignment:** exactly what this teammate must do.
 5. **Output expected:** the exact file path to write.
@@ -467,7 +465,7 @@ Attack the spec at docs/claude_tasks/NN_slug.md. Also read the Step 2 analysis r
 real data/system facts are your best ammunition.
 
 OUTPUT:
-Write your report to: docs/claude_tasks/reviews/YYYY-MM-DD_NN_slug_devils-advocate.md
+Write your report to: docs/claude_tasks/reviews/YYYY-MM-DD_NN_devils-advocate_review.md
 
 Grounded-Dissent Protocol: every objection cites evidence (file:line, data row, memory incident,
 architecture principle, hard rule, chronicle problem) or it is discarded. Speculation goes ONLY in
@@ -621,8 +619,6 @@ Execute in order before starting any work.
    status (read its type from `settings.json`).
 5. Load corpus context — read `docs/project_chronicle.md` (prior decisions & findings) and the INDEX; for a
    specific topic, grep the corpus / run `affects-lookup`. The corpus is the memory — there is no memory server.
-   (If the project enabled basic-memory, you may also use its search_notes/build_context tools — but the corpus
-   remains the default source of truth.)
 6. Read `docs/context_snapshot.md` (if it exists) — last session's state.
 7. Read `docs/INDEX.md` (if it exists) — the autogenerated corpus index (see what depends on what you'll change).
 8. Read the current task spec (if applicable) + every reference file it lists (MANDATORY).

@@ -12,7 +12,7 @@ updated: <placeholder: YYYY-MM-DD>
 tags: []
 reviewer: da
 task_number: <placeholder: integer>
-verdict: approve
+verdict: <placeholder: approve | approve_with_fixes | reject_needs_rework>
 critical_count: 0
 high_count: 0
 ---
@@ -26,13 +26,14 @@ high_count: 0
      The DA validates data/output quality and correctness against the REAL data or the
      real running result — counts, distributions, reconciliation vs the source. Report
      actuals, not estimates. Read-only on data (SELECT only).
-     NOTE: this review is SEPARATE from the alpha test — the frozen alpha test
-     (docs/claude_tasks/alpha_tests/NN_slug.md) has its own binary execution log at Step 8. -->
+     Optional: the PM asks for it when the output needs a data-quality verdict beyond the alpha test.
+     It is SEPARATE from the alpha test — the binary Step 8 record is the Execution log of
+     docs/claude_tasks/alpha_tests/NN_slug.md. -->
 
 > Auditor: da
 > Date: <placeholder: YYYY-MM-DD>
 > Spec audited: `docs/claude_tasks/<NN>_<slug>.md`
-> Verdict: <placeholder>
+> Verdict: <placeholder: approve | approve_with_fixes | reject_needs_rework>
 
 ---
 
@@ -70,4 +71,4 @@ high_count: 0
 
 ## Recommendation
 
-<!-- guidance: APPROVE | APPROVE_WITH_FIXES | REJECT_NEEDS_REWORK with evidence. -->
+<!-- guidance: The verdict (approve | approve_with_fixes | reject_needs_rework) with its evidence. -->

@@ -98,8 +98,6 @@ Execute in order at every session start:
    `docs/context_snapshot.md` (current-state handoff) + the INDEX. For a topic, grep the corpus — **including
    `docs/knowledge_base/` (topic articles the kb-curator maintains; check `aliases:` too)** — / read the INDEX /
    run `scripts/affects-lookup.mjs` — the corpus *is* the memory; there is no `search_nodes` / `read_graph`.
-   (If the project enabled basic-memory, you may also use its `search_notes`/`build_context` tools — but the
-   corpus remains the default source of truth.)
 5. Read `TODO.md` + check the tracker ({{TRACKER}}) — current priorities. **The tracker is the source of truth
    for ticket status**; `TODO.md` is the dependency-ordered roadmap mirror.
 6. Read `docs/context_snapshot.md` (if it exists) — last session's state, for a cold resume.
@@ -295,7 +293,7 @@ CLAUDE.md holds **governance only**. Technical content lives in `docs/`. Do not 
 | `docs/claude_tasks/` | Lifecycle artifacts: specs + `alpha_tests/` (frozen), `reviews/`, `reports/`, `council/`, `handoffs/` (durable twin of the snapshot — `/handshake out` on git-remote transport), `archive/`. | normal |
 | `docs/audits/` | `/audit-corpus` reports + corpus-steward manifests. | normal |
 | `docs/_templates/` | Frontmatter-valid templates `/new-doc` scaffolds from. | normal |
-| `.claude/rules/*.md` | The governance rule set: `code-style`, `dependency-governance`, `frontmatter` (the taxonomy SSOT), `git-workflow`, `mcp-usage`, `search-first`, `security`, `testing`. | normal |
+| `.claude/rules/*.md` | The governance rule set: `code-style`, `dependency-governance`, `frontmatter` (the taxonomy SSOT), `git-workflow`, `mcp-usage`, `search-first`, `security`, `teammate` (what every spawned teammate shares), `testing`. | normal |
 
 ---
 
