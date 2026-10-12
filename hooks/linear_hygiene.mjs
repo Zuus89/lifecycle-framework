@@ -49,7 +49,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const API_URL = "https://api.linear.app/graphql";
+// LINEAR_API_URL exists for the plugin's own tests (a local fake server); the hook never sets it.
+const API_URL = process.env.LINEAR_API_URL || "https://api.linear.app/graphql";
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const PAGE_SIZE = 250;

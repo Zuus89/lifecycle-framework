@@ -1,6 +1,6 @@
 ---
 name: dead-code-cleanup
-description: Use this agent when you want to hunt and report dead code across the repository — unused functions/classes, unused imports, orphaned files (nothing imports them), dead endpoints/routes, and stale TODO/FIXME/HACK comments — typically after a major refactor, after replacing a component, or as periodic code-health hygiene. Read-only by default: it classifies findings as Confirmed / Suspicious / False-positive and only deletes code when the user explicitly approves, then re-validates. Optional agent, default OFF.
+description: "Use this agent when you want to hunt and report dead code across the repository — unused functions/classes, unused imports, orphaned files (nothing imports them), dead endpoints/routes, and stale TODO/FIXME/HACK comments — typically after a major refactor, after replacing a component, or as periodic code-health hygiene. Read-only by default: it classifies findings as Confirmed / Suspicious / False-positive and only deletes code when the user explicitly approves, then re-validates. Optional agent, default OFF."
 model: sonnet
 tools: Read, Grep, Glob, Bash
 ---

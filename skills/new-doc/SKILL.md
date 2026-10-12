@@ -66,7 +66,7 @@ The date prefix `YYYY-MM-DD` is today's ISO date. `NN` is the zero-padded task n
 
    **Type-specific fields:**
    - `alpha_test` → `designed_by: da`, `status: draft`, `sealed_date: null`. The seal (`status: sealed`, `sealed_date:` set) happens **only at lifecycle Step 6**, after spec review resolves — never at scaffold time. (Freeze rule.)
-   - `review_de` / `review_da` / `review_code-reviewer` / `review_devils-advocate` → set `reviewer:` to the matching role (`de | da | code-reviewer | devils-advocate`); leave the verdict as a placeholder until the review actually runs. The `code-reviewer` verdict enum is `SAFE | NON-BLOCKING | NOT SAFE`; the `devils-advocate` verdict enum is `attack | mostly_grounded_dissent | mostly_speculative`.
+   - `review_de` / `review_da` / `review_code-reviewer` / `review_devils-advocate` → set `reviewer:` to the matching role (`de | da | code-reviewer | devils-advocate`); leave the verdict as a placeholder until the review actually runs. The `code-reviewer` verdict enum is `safe | non_blocking | not_safe_to_deploy`; the `devils-advocate` verdict enum is `attack | mostly_grounded_dissent | mostly_speculative` (both enforced by the validator from `corpus.config.mjs`).
    - `council` → `status: pending` until the human delivers the Step 7 verdict (then `decided` / `open`).
    - `report` → link it to its spec via `depends_on:` (the spec path) so the report/spec chain resolves in the index.
    - `handoff` → `status: snapshot`, `authority: secondary`, `next_action:` = the exact first OPEN item (the

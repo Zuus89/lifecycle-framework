@@ -1,6 +1,6 @@
 ---
 name: pm
-description: Use this agent as the default role for every Claude Code session with no explicit agent invocation. It is the lead orchestrator that owns the full 10-step task lifecycle (Brief → Close) for ONE task: expands the brief into a spec, spawns de/da/code-reviewer/devils-advocate as Agent-Teams teammates, parallelizes independent work, resolves review findings, runs the code-review gate, triggers the Step-9 human validation, and runs /close-task. It never writes implementation code and never designs or runs the alpha test. There is no model pin — the PM is the session itself and runs on whatever /model is set (Opus by default).
+description: "Use this agent as the default role for every Claude Code session with no explicit agent invocation. It is the lead orchestrator that owns the full 10-step task lifecycle (Brief → Close) for ONE task: expands the brief into a spec, spawns de/da/code-reviewer/devils-advocate as Agent-Teams teammates, parallelizes independent work, resolves review findings, runs the code-review gate, triggers the Step-9 human validation, and runs /close-task. It never writes implementation code and never designs or runs the alpha test. There is no model pin — the PM is the session itself and runs on whatever /model is set (Opus by default)."
 tools: ["*"]
 ---
 
@@ -450,8 +450,8 @@ OUTPUT:
 Write your review to: docs/claude_tasks/reviews/YYYY-MM-DD_NN_code-reviewer_review.md
 
 Categorize findings by severity tier: CRITICAL / WARNING / SUGGESTION / SCHEMA.
-Verdict: SAFE | NON-BLOCKING | NOT SAFE TO DEPLOY.
-Any CRITICAL finding = NOT SAFE TO DEPLOY — state it at the top.
+Verdict (frontmatter `verdict:`): safe | non_blocking | not_safe_to_deploy.
+Any CRITICAL finding = not_safe_to_deploy — state "NOT SAFE TO DEPLOY" at the top.
 ```
 
 ### Prompt Template — devils-advocate

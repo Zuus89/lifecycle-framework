@@ -98,7 +98,8 @@ export const REVIEWER_ENUM = new Set(['de', 'da', 'code-reviewer', 'devils-advoc
 export const VERDICT_ENUMS = {
   de: new Set(['approve', 'approve_with_fixes', 'reject_needs_rework']),
   da: new Set(['approve', 'approve_with_fixes', 'reject_needs_rework']),
-  'code-reviewer': new Set(['approve', 'approve_with_followups', 'not_safe_to_deploy']),
+  // Mirrors the deploy gate: any CRITICAL finding ⇒ not_safe_to_deploy.
+  'code-reviewer': new Set(['safe', 'non_blocking', 'not_safe_to_deploy']),
   'devils-advocate': new Set(['attack', 'mostly_grounded_dissent', 'mostly_speculative']),
 };
 

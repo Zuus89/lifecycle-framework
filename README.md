@@ -57,6 +57,9 @@ Then, inside a repository (ideally a working branch of a repo with CI/CD):
   project outside exactly one initiative), plus an opt-in Linear hygiene detector at session start
   (`agents.linear_steward`, scoped to the repo's project). **MCP** — none by default (empty `.mcp.json`; the corpus — chronicle +
   snapshot + knowledge base + INDEX — is the knowledge graph; `basic-memory` opt-in at init).
+- **Tests** — the plugin's own safety net: `npm install && npm test` (`tests/`, Node 24 + Python 3, under 10 s)
+  exercises the hooks, the scaffolded corpus engine, every template, and the vocabularies that several files must
+  agree on. CI runs it on every PR.
 
 ### What `/lifecycle-init` scaffolds (Tier B)
 

@@ -12,7 +12,7 @@ updated: <placeholder: YYYY-MM-DD>
 tags: []
 reviewer: code-reviewer
 task_number: <placeholder: integer>
-verdict: SAFE
+verdict: <placeholder: safe | non_blocking | not_safe_to_deploy>
 critical_count: 0
 warning_count: 0
 ---
@@ -26,13 +26,13 @@ warning_count: 0
      deploy/commit of production code (docs-only changes are exempt). It is READ-ONLY:
      do not modify any code file — return this review as text and describe fixes only.
      Severity tiers: CRITICAL / WARNING / SUGGESTION / SCHEMA.
-     Verdict enum: SAFE | NON-BLOCKING | NOT SAFE.
-     ANY CRITICAL finding = NOT SAFE TO DEPLOY. The reviewer never approves its own work. -->
+     Verdict enum (frontmatter `verdict:`): safe | non_blocking | not_safe_to_deploy.
+     ANY CRITICAL finding = not_safe_to_deploy. The reviewer never approves its own work. -->
 
 > **Reviewer:** code-reviewer (formerly heimdall)
 > **Date:** <placeholder: YYYY-MM-DD>
 > **Files reviewed:** <placeholder: list>
-> **Verdict:** <placeholder: SAFE | NON-BLOCKING | NOT SAFE>
+> **Verdict:** <placeholder: safe | non_blocking | not_safe_to_deploy>
 
 ---
 

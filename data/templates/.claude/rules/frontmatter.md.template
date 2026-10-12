@@ -101,7 +101,7 @@ high_count: 2
 | `de` | — | `approve` \| `approve_with_fixes` \| `reject_needs_rework` |
 | `da` | — | `approve` \| `approve_with_fixes` \| `reject_needs_rework` |
 | `code-reviewer` | (formerly heimdall) | `safe` \| `non_blocking` \| `not_safe_to_deploy` |
-| `devils-advocate` | (formerly loki) | `mostly_grounded_dissent` \| `mostly_speculative` |
+| `devils-advocate` | (formerly loki) | `attack` \| `mostly_grounded_dissent` \| `mostly_speculative` |
 
 > The code-reviewer verdict mirrors the deploy gate: **any CRITICAL finding ⇒ `not_safe_to_deploy`**.
 > The devils-advocate never approves — its verdict only characterizes how grounded the
