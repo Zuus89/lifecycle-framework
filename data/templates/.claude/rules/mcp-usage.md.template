@@ -19,9 +19,9 @@ and you skip the server, explain why in the task report.
   knowledge graph (chronicle + snapshot + knowledge base + INDEX + affects-lookup). OPT-IN: a
   project may enable the `basic-memory` MCP at init — see §1.
 - **tracker** — `{{TRACKER}}`. Wired by `/lifecycle-init` at the project's MCP scope (§0,
-  default `local` — confined to this repo). The `/log-tracker` skill branches on the tracker
-  chosen at init (Linear, or Atlassian for Jira). If `{{TRACKER}}` is `none`, the project runs
-  on the local `TODO.md` only.
+  default `local` — confined to this repo). `/log-activity --tracker` and `/close-task` branch on
+  the tracker chosen at init (Linear, or Atlassian for Jira). If `{{TRACKER}}` is `none`, the
+  project runs on the local `TODO.md` only.
 - **stack MCPs** — only what the project needs, per the §0 catalog (`slack`, `vercel`,
   `supabase` or `neon`), wired at the same scope. The authoritative enabled list is
   `settings.json → mcp.servers`.
@@ -142,11 +142,11 @@ issues — anything that needs the remote repository's state rather than the loc
 
 ## 3. tracker — {{TRACKER}} (wired at init; mandatory unless `none`)
 
-**When:** at lifecycle milestones, via `/log-tracker` (the human-readable half of the
-dual-write; the JSONL `activity_log` is the machine half). Mirror the step to the tracker
-and cross-reference it by id. The skill reads the connection from `.claude/settings.json` at
-runtime and posts to the correct backend for `{{TRACKER}}`. Routine intra-step progress uses
-`/log-activity` (JSONL only, no tracker comment).
+**When:** at lifecycle milestones, via `/log-activity … --tracker` (one logger: the JSONL line
+is the machine half, the mirrored comment the human-readable half, cross-referenced by id). The
+skill reads the connection from `.claude/settings.json` at runtime and posts to the correct
+backend for `{{TRACKER}}`. Routine intra-step progress uses `/log-activity` without the flag
+(JSONL only, no tracker comment). The logger never moves a ticket to Done — `/close-task` does.
 
 **Lifecycle touchpoints (both backends):**
 - **Step 1 (Brief)** — move the start ticket to **In Progress** and post the kickoff comment.

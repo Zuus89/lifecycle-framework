@@ -225,8 +225,10 @@ mode) runs the frozen test; the **DE never touches the test**; the code-reviewer
 **Three review layers:** ① DE self-review (in session, own checklist) → ② PM review (in session, vs spec) → ③ CI
 code-review (on the PR diff, always-on, bias-free).
 
-**Traceability (dual-write):** after each step, `/log-activity` appends the JSONL line and `/log-tracker` (at
-milestones) posts the mirrored tracker comment, cross-referenced by id.
+**Traceability (dual-write, one logger):** after each step, `/log-activity` appends the JSONL line; at milestones
+the same call with `--tracker` also posts the mirrored tracker comment, cross-referenced by id. The line shape and
+the event vocabulary have one machine copy, `corpus.config.mjs` (`LOG_FIELDS`, `EVENTS`), shared with the
+post-commit hook. The logger never moves a ticket to Done — `/close-task` does, once.
 
 ---
 

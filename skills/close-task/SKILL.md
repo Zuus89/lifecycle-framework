@@ -155,10 +155,11 @@ Make this **unconditional on frontmatter change** — a conditional rebuild leav
 pre-push hook / CI will block the push if the INDEX drifts from source.
 
 ### Activity log
-Write the closing line via `/log-activity <variant>-closed: <summary>` (the cheap, tracker-free half of the
-dual-write). A **Full lifecycle close** is a milestone, so additionally route it through `/log-tracker`
-(step 10, agent `pm`) so the tracker gets the closing comment cross-referenced by id. Skip `/log-tracker` when
-`tracker = none`.
+Write the closing line with the single logger: `/log-activity task-closed: <summary>` on a Full or Research
+close (the summary names the variant), `/log-activity paused: <summary>` on a Transitory close (a session
+boundary completes no step). A **Full lifecycle close** is a milestone: add `--tracker` so the ticket gets the
+closing comment cross-referenced by id (`/log-activity task-closed: <summary> --tracker`, agent `pm`; a no-op
+when `tracker = none`). The logger never transitions the ticket — the move to Done happens exactly once, in §3.
 
 ## 3. Lifecycle-only updates (FULL close only — skip in Research and Transitory)
 
@@ -181,7 +182,8 @@ tool names vary by server version: discover the exact ones from the session tool
 below use indicative names). The workspace/team/project identity is in `settings.json` /
 `corpus.config.mjs` — read it, do not hardcode.
 
-1. **Append Completion Notes** to the issue description (append, never replace):
+1. **Append Completion Notes** to the issue description (append, never replace). This is the canonical block —
+   the Jira branch converts the same content to Jira markup:
    ```
    ## Completion Notes
    - **Completed:** YYYY-MM-DD
@@ -203,17 +205,8 @@ Use the Atlassian MCP wired at init (server `atlassian` from `settings.json → 
 `corpus.config.mjs`. Resolve the issue key from the spec's tracker id.
 
 1. **Append Completion Notes** to the issue description via `editJiraIssue` (fetch the current description with
-   `getJiraIssue`, append the block below, write it back — do not overwrite prior content):
-   ```
-   h2. Completion Notes
-   * *Completed:* YYYY-MM-DD
-   * *Implemented by:* {de / da / pm}
-   * *Files modified:* {list}
-   * *Key decisions:* {any deviations from the spec}
-   * *Alpha test:* docs/claude_tasks/alpha_tests/<NN_slug>.md — passed / failed / N/A
-   * *Task report:* docs/claude_tasks/reports/YYYY-MM-DD_<NN_slug>_report.md
-   * *Commit:* git short hash + message (or "No commit — analysis only")
-   ```
+   `getJiraIssue`, append the canonical block from the Linear branch above converted to Jira markup — `h2.`
+   heading, `* *Field:* value` bullets — and write it back; do not overwrite prior content).
    (Also acceptable: post the block as a comment via `addCommentToJiraIssue` if the project convention is
    comment-based completion notes — follow `corpus.config.mjs`.)
 2. **Transition the issue to Done** — call `getTransitionsForJiraIssue` to find the transition id whose target is the

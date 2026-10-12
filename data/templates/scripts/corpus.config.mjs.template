@@ -6,8 +6,11 @@
  *   - _corpus-walk.mjs          (EXCLUDED_DIRS, EXCLUDED_ROOT_FILES, PROJECT_SKILLS)
  *   - validate-frontmatter.mjs  (TYPE/STATUS/AUTHORITY enums, verdicts, affects grammar, VALIDATOR)
  *   - build-index.mjs           (TICKET_REGEX, OUTPUT paths)
- *   - log-commit-activity.mjs   (OUTPUT paths, BRANCH_TICKET_REGEX, TICKET_KEY)
+ *   - log-commit-activity.mjs   (OUTPUT paths, BRANCH_TICKET_REGEX, TICKET_KEY, LOG_FIELDS)
  *   - affects-lookup.mjs        (TICKET_REGEX, OUTPUT paths)
+ * The /log-activity skill documents LOG_FIELDS / EVENTS / LOG_AGENTS (the
+ * activity-log contract); this file is the machine copy the hook and the
+ * plugin's consistency test read.
  *
  * Change the taxonomy in ONE place; the tools follow. Centralizing these
  * constants eliminates the multi-file drift that comes from each script
@@ -105,6 +108,65 @@ export const VERDICT_ENUMS = {
 
 /** Valid status values for type: alpha_test (a strict subset of STATUS_ENUM). */
 export const ALPHA_TEST_STATUS_ENUM = new Set(['draft', 'sealed', 'passed', 'failed']);
+
+// ---------------------------------------------------------------------------
+// Activity log contract (docs/activity_log.jsonl) — the single logger
+// ---------------------------------------------------------------------------
+
+/**
+ * The JSONL line shape, in order. Every field is always present (`null`, never
+ * omitted). Written by /log-activity (every step; `--tracker` at milestones
+ * fills tracker_comment_id) and by log-commit-activity.mjs (the post-commit
+ * hook: agent/model/step/pr_url/tracker_comment_id are null).
+ */
+export const LOG_FIELDS = [
+  'ts', 'session', 'ticket', 'branch', 'pr_url', 'step', 'agent', 'model',
+  'event', 'summary', 'artifacts', 'tracker_comment_id',
+];
+
+/** Who may author a line: the role-descriptive agent ids, the human, or null (hook). */
+export const LOG_AGENTS = new Set([
+  'pm', 'de', 'da', 'code-reviewer', 'devils-advocate',
+  'corpus-steward', 'kb-curator', 'data-reviewer', 'scout', 'dead-code-cleanup', 'linear-steward',
+  'human',
+]);
+
+/**
+ * The closed event vocabulary, mapped to the 10-step lifecycle. `step` is the
+ * lifecycle step the event closes, or null for events with no fixed step.
+ * `committed` is 7 when hand-logged and null from the post-commit hook;
+ * `kb-curated` is 10 on a Full/Research close and null on a Transitory one.
+ * Add an event here first; /log-activity §B documents the same table.
+ */
+export const EVENTS = {
+  'brief-received':                  { step: 1,    description: 'Step 1 — the human\'s brief received, task started' },
+  'data-analysis-complete':          { step: 2,    description: 'Step 2 — DA profiled the real data' },
+  'spec-written':                    { step: 3,    description: 'Step 3 — PM spec authored (brief + analysis → acceptance criteria)' },
+  'alpha-test-designed':             { step: 4,    description: 'Step 4 — DA alpha test written from the spec (status: draft)' },
+  'spec-review-complete':            { step: 5,    description: 'Step 5 — DE feasibility review done' },
+  'devils-advocate-attack-complete': { step: 5,    description: 'Step 5 — devils-advocate adversarial attack done' },
+  'spec-revised':                    { step: 6,    description: 'Step 6 — PM addressed objections, spec revised' },
+  'alpha-test-sealed':               { step: 6,    description: 'Step 6 — alpha test frozen (status: sealed, sealed_date set)' },
+  'implementation-started':          { step: 7,    description: 'Step 7 — implementation begins' },
+  'implementation-complete':         { step: 7,    description: 'Step 7 — implementation done, self-review passed' },
+  'committed':                       { step: 7,    description: 'code committed (7 when hand-logged; null from the post-commit hook)' },
+  'code-review-complete':            { step: 7,    description: 'Step 7 — code-reviewer gate done (verdict in summary)' },
+  'alpha-test-executed':             { step: 8,    description: 'Step 8 — the FROZEN alpha test was run' },
+  'tests-passed':                    { step: 8,    description: 'Step 8 — alpha test / validations passed (binary)' },
+  'tests-failed':                    { step: 8,    description: 'Step 8 — alpha test / validations failed (binary)' },
+  'validation-complete':             { step: 9,    description: 'Step 9 — human accepted (or sent back — say which in summary)' },
+  'task-closed':                     { step: 10,   description: 'Step 10 — /close-task (Full or Research; the summary names the variant)' },
+  'kb-curated':                      { step: 10,   description: 'Knowledge folded into docs/knowledge_base/ by the kb-curator at close (null on a Transitory close)' },
+  'blocker-hit':                     { step: null, description: 'Work blocked — needs unblock' },
+  'blocker-resolved':                { step: null, description: 'Blocker cleared — work resumed' },
+  'decision':                        { step: null, description: 'A decision of record or a deviation from plan' },
+  'paused':                          { step: null, description: 'Work paused (end of day / Transitory close)' },
+  'handshake-out':                   { step: null, description: 'Machine transfer packed by /handshake out' },
+  'handshake-in':                    { step: null, description: 'Machine transfer unpacked by /handshake in' },
+  'council-convened':                { step: null, description: 'A /council deliberation was convened' },
+};
+
+export const EVENT_NAMES = new Set(Object.keys(EVENTS));
 
 // ---------------------------------------------------------------------------
 // Ticket identifiers (tracker key = {{TRACKER_KEY}})

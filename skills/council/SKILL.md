@@ -129,7 +129,7 @@ The PM presents the synthesis to the human (in the project's communication langu
 
 1. Update the council doc: `status: decided` (or `open` if sent back), and record the verdict verbatim including its **reopen criteria**.
 2. **Decision of record:** the human's verdict IS the authorization for the protected-file write — add a row to the `docs/strategy.md` Decisions table and append an entry to `docs/project_chronicle.md`.
-3. Log it: `/log-tracker decision: <verdict>` on the relevant ticket (branches on the tracker chosen at init — Jira via the Atlassian MCP, or Linear), and `/log-activity` the `decision` event.
+3. Log it once: `/log-activity decision: <verdict> --tracker` — the `decision` line in the activity log plus the mirrored comment on the relevant ticket (the logger branches on the tracker chosen at init — Jira via the Atlassian MCP, or Linear).
 
 If the human's verdict leaves blocking unresolved questions, they become tracker sub-issues before any implementation starts.
 
@@ -255,6 +255,6 @@ Measure council ROI: did the verdict change the outcome versus what the PM would
 - The `de`, `da`, and `code-reviewer` agent charters — member perspectives
 - `docs/strategy.md` — the project goal + the Decisions table (context for all members; destination for verdicts)
 - `docs/_templates/council.md` — the verdict document template, scaffolded via `/new-doc council`
-- `/log-activity`, `/log-tracker` — the dual-write logging the verdict requires
+- `/log-activity … --tracker` — the dual-write logging the verdict requires (one logger, one line, one comment)
 - External: [council-of-high-intelligence (0xNyk)](https://github.com/0xNyk/council-of-high-intelligence) — protocol source
 - External: [Du et al. 2023, Multi-Agent Debate](https://arxiv.org/abs/2305.14325) — empirical basis for debate > single-agent

@@ -91,7 +91,7 @@ test("every agent pm.md spawns exists, and every agent file has a coherent front
 
 test("every skill directory holds a SKILL.md whose name matches the directory", () => {
   const dirs = readdirSync(skillsDir);
-  assert.ok(dirs.length >= 8);
+  assert.ok(dirs.length >= 7);
   for (const d of dirs) {
     const fm = frontmatter(join(skillsDir, d, "SKILL.md"));
     assert.equal(fm.name, d, `skills/${d}/SKILL.md: name must equal the directory`);
@@ -125,9 +125,37 @@ test("plugin.json and marketplace.json carry the same version", () => {
   assert.equal(marketplace.metadata.version, plugin.version);
 });
 
-test("activity-log event vocabulary is single-sourced (log-activity ≡ log-tracker)", { todo: "CRI-1155 (PR2) folds /log-tracker into /log-activity and moves the vocabulary to corpus.config" }, () => {
-  const events = (text) => new Set([...text.matchAll(/^\| `([a-z-]+)` \|/gm)].map((m) => m[1]));
-  const a = events(read(join(skillsDir, "log-activity", "SKILL.md")));
-  const b = events(read(join(skillsDir, "log-tracker", "SKILL.md")));
-  assert.deepEqual([...a].sort(), [...b].sort());
+test("activity-log contract: the skill's event table ≡ corpus.config EVENTS; pm.md's event map ⊆ EVENTS; LOG_FIELDS and LOG_AGENTS are the documented ones", async () => {
+  const { EVENTS, LOG_FIELDS, LOG_AGENTS } = await loadConfig();
+  const tableEvents = (text) => [...text.matchAll(/^\| `([a-z-]+)` \|/gm)].map((m) => m[1]).filter((e) => e !== "event");
+
+  const skill = read(join(skillsDir, "log-activity", "SKILL.md"));
+  const sectionB = skill.slice(skill.indexOf("## §B"), skill.indexOf("## §C"));
+  assert.deepEqual(tableEvents(sectionB), Object.keys(EVENTS), "log-activity §B must list exactly EVENTS, in order");
+
+  // pm.md's "Event-to-step map" (and its off-lifecycle line) may only name events that exist.
+  const pm = read(join(agentsDir, "pm.md"));
+  const start = pm.indexOf("Event-to-step map");
+  const end = pm.indexOf("## What You Do", start);
+  assert.ok(start > 0 && end > start, "pm.md must keep its Event-to-step map before ## What You Do");
+  const pmEvents = [...pm.slice(start, end).matchAll(/`([a-z-]+)`/g)].map((m) => m[1]);
+  assert.ok(pmEvents.length >= 20, `expected the full event map in pm.md, found ${pmEvents.length} tokens`);
+  for (const e of pmEvents) assert.ok(e in EVENTS, `pm.md names the event \`${e}\`, which is not in corpus.config EVENTS`);
+
+  const exampleKeys = Object.keys(JSON.parse(skill.match(/```json\n([\s\S]+?)\n```/)[1]));
+  assert.deepEqual(exampleKeys, LOG_FIELDS, "the §A example line must carry exactly LOG_FIELDS, in order");
+  for (const id of ["pm", "de", "da", "code-reviewer", "devils-advocate", "kb-curator", "linear-steward", "human"]) assert.ok(LOG_AGENTS.has(id), id);
+});
+
+test("/log-tracker is gone: no skill directory and no mention left in the shipped files", () => {
+  assert.ok(!existsSync(join(skillsDir, "log-tracker")), "skills/log-tracker must not exist");
+  const shipped = [
+    ...readdirSync(agentsDir).map((f) => join(agentsDir, f)),
+    ...readdirSync(skillsDir).map((d) => join(skillsDir, d, "SKILL.md")),
+    join(REPO, "README.md"), join(REPO, "FRAMEWORK.md"), join(REPO, "hooks", "hooks.json"),
+  ];
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
+  for (const file of [...shipped, ...walk(TEMPLATES)]) {
+    assert.ok(!/log-tracker/.test(read(file)), `${file} still mentions log-tracker`);
+  }
 });
